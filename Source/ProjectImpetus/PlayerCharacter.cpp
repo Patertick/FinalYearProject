@@ -32,3 +32,24 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 }
 
+void APlayerCharacter::AddSelectedActors(TArray<AActor*> newActors)
+{
+	// add all new actors after emptying array
+	EmptySelectedActors();
+	for (int i = 0; i < newActors.Num(); i++)
+	{
+		m_SelectedActors.Add(newActors[i]);
+	}
+}
+
+void APlayerCharacter::SelectActor(AActor* actor)
+{
+	// make sure there is only one actor in the array after this function completes
+	EmptySelectedActors();
+	m_SelectedActors.Add(actor);
+	// add on screen message if debug mode is active and array is not of expected size
+	if (m_SelectedActors.Num() != 1 && m_DebugMode) {
+		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, TEXT("ERROR, ARRAY IS NOT OF SIZE 1"));
+	}
+}
+
