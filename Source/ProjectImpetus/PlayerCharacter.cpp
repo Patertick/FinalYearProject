@@ -2,6 +2,7 @@
 
 
 #include "PlayerCharacter.h"
+#include "NPC.h"
 
 // Sets default values
 APlayerCharacter::APlayerCharacter()
