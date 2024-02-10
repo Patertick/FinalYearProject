@@ -2,6 +2,7 @@
 
 
 #include "NPC.h"
+#include <Kismet/GameplayStatics.h>
 
 // Sets default values
 ANPC::ANPC()
@@ -15,6 +16,102 @@ ANPC::ANPC()
 void ANPC::BeginPlay()
 {
 	Super::BeginPlay();
+
+
+	TArray<AActor*> Tiles;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
+
+	// SET POSSIBLE STATES
+
+	State newState; // temp state
+	AActor* closestTile = nullptr;
+	for (AActor* tile : Tiles)
+	{
+		// add all possible tile and directive combinations to possible states
+		newState.tile = Cast<ATile3D>(tile);
+		newState.actionState = ActionState::DoingNothing;
+		m_PossibleStates.Add(newState);
+		newState.actionState = ActionState::Attacking;
+		m_PossibleStates.Add(newState);
+		newState.actionState = ActionState::Interacting;
+		m_PossibleStates.Add(newState);
+
+		m_MapData.Add(Cast<ATile3D>(tile));
+
+		FVector2D actorPos = FVector2D{ GetActorLocation().X, GetActorLocation().Y};
+		FVector2D tilePos = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
+		// find closest tile for initial state
+		if (closestTile == nullptr) closestTile = tile;
+		else if (FVector2D::Distance(tilePos, actorPos) < 
+			FVector2D::Distance(FVector2D{closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y}, actorPos))
+		{
+			// if current tile is closer to this NPC than last closest tile, set new closest tile to current tile
+			closestTile = tile;
+		}
+	}
+
+	// SET INITIAL STATE
+	
+	m_InitialState.tile = Cast<ATile3D>(closestTile);
+	m_InitialState.actionState = ActionState::DoingNothing; // start off doing nothing
+	m_InitialState.tile->SetType(TileType::NPC);
+
+	// set current action to null
+	m_CurrentAction.actionType = Function::NullAction;
+	m_CurrentAction.startingState = m_InitialState;
+	m_CurrentAction.endState = m_InitialState;
+
+	// SET ACTIONS
+
+	Action newAction;
+
+	for (State state : m_PossibleStates)
+	{
+		for (ATile3D* connectedTile : state.tile->GetConnectedTiles())
+		{
+
+			// set possible move actions between connected tiles for each state
+			newAction.startingState = state;
+			// this state should already exist in possible states, but rather than waste time looking it up, simply set new state to equivalent state
+			newState.actionState = state.actionState;
+			newState.tile = connectedTile;
+			newAction.endState = newState;
+			newAction.actionType = Function::MoveFunction;
+			m_Actions.Add(newAction);
+
+
+
+			// possible interact actions include states is interacting with each connected tile
+			// end state is not where the NPC will be physically its just the state that the NPC is interacting with (as in whatever object is in that position)
+			newAction.startingState = state;
+			newState.actionState = ActionState::Interacting;
+			newState.tile = connectedTile;
+			newAction.endState = newState;
+			newAction.actionType = Function::InteractFunction;
+			m_Actions.Add(newAction);
+		}
+
+		// possible attack actions include states where the tile contains an NPC & is within range
+		for (ATile3D* tile : m_MapData)
+		{
+			if (FVector::Distance(tile->GetActorLocation(), m_InitialState.tile->GetActorLocation()) <= m_AttackRange)
+			{
+				// tile is within range thus the start state is our position and the end state is the target position
+				// since the action is marked as an attack function, our NPC isn't going to the location that the state specifies, it's attacking that state
+				// possible states are just any state any NPC can be in, thus using an attack function on a state is simply attacking whatever NPC is in that state
+				newAction.startingState = state;
+				// if tile is within range this is our target
+				newState.actionState = ActionState::Attacking;
+				newState.tile = tile;
+				newAction.endState = newState;
+				newAction.actionType = Function::AttackFunction;
+				m_Actions.Add(newAction);
+			}
+		}
+
+		
+	}
+
 	
 }
 
@@ -23,27 +120,132 @@ void ANPC::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (m_Health <= 0.0f)
+	{
+		m_InitialState.tile->SetType(TileType::None);
+		Destroy(); // death
+		return;
+	}
+
 	m_Controllable = !m_Threat;
 
-	switch (m_Directive)
+	// when the NPC has no action, try to find a new one given the NPC has a focus (or goal)
+	if (m_CurrentAction.actionType == Function::NullAction && m_Focus != nullptr)
 	{
-	case Directive::AttackThis:
-		GEngine->AddOnScreenDebugMessage(ID, 15.0f, FColor::White, "I am attacking");
-		break;
-	case Directive::FollowThis:
-		GEngine->AddOnScreenDebugMessage(ID, 15.0f, FColor::White, "I am following");
-		break;
-	case Directive::InteractThis:
-		GEngine->AddOnScreenDebugMessage(ID, 15.0f, FColor::White, "I am interacting");
-		break;
-	case Directive::MoveHere:
-		GEngine->AddOnScreenDebugMessage(ID, 15.0f, FColor::White, "I am moving");
-		break;
-	case Directive::DoNothing:
-	default:
-		GEngine->AddOnScreenDebugMessage(ID, 15.0f, FColor::White, "I am doing nothing");
-		break;
+		m_GoalStates.Empty(); // empty goal states
+		switch (m_Directive)
+		{
+		case Directive::AttackThis:
+			
+			// make possible goal states for attacking (goal states being attacking & within range of focus)
+			for (State state : m_PossibleStates)
+			{
+				if (state.actionState == ActionState::Attacking)
+				{
+					// attacking state
+					if (FVector::Distance(m_Focus->GetActorLocation(), state.tile->GetActorLocation()) <= m_AttackRange)
+					{
+						m_GoalStates.Add(state); // within range and attacking, this state is a possible goal state
+					}
+				}
+			}
+
+			for (Action action : m_Actions)
+			{
+				for (State goal : m_GoalStates)
+				{
+
+					if (action.startingState == m_InitialState && action.endState == goal && action.actionType == Function::AttackFunction)
+					{
+						FVector2D focusLoc = FVector2D{ m_Focus->GetActorLocation().X, m_Focus->GetActorLocation().Y };
+						FVector2D tilePos = FVector2D{ action.endState.tile->GetActorLocation().X, action.endState.tile->GetActorLocation().Y };
+						if (action.endState.tile->GetType() == TileType::NPC && 
+							FVector2D::Distance(focusLoc, tilePos) <= KTILEMAXDISTANCE)
+						{// don't want to target a different NPC's tile, so inflict a restriction on max distance from the focus and tile
+							m_CurrentAction = action;
+							break;
+						}
+					}
+				}
+			}
+
+			break;
+		// following isn't really its own action, more of a set of move actions with restrictions, thus following directive will be used primarily
+		// by planning brain
+		case Directive::FollowThis:
+			//// make possible goal states for following (goal states being within range of focus)
+			//for (State state : m_PossibleStates)
+			//{
+			//	if (FVector::Distance(GetActorLocation(), state.tile->GetActorLocation()) <= m_FollowRange)
+			//	{
+			//		m_GoalStates.Add(state); // within range
+			//	}
+			//	
+			//}
+			break;
+		case Directive::InteractThis:
+			// make possible goal states for interacting (goal states being within range of focus & interacting)
+			// make possible goal states for attacking (goal states being attacking & within range of focus)
+			for (State state : m_PossibleStates)
+			{
+				if (state.actionState == ActionState::Interacting)
+				{
+					// Interacting state
+					if (FVector::Distance(m_Focus->GetActorLocation(), state.tile->GetActorLocation()) <= KTILEMAXDISTANCE)
+					{
+						m_GoalStates.Add(state); // within range and interacting, this state is a possible goal state
+					}
+				}
+			}
+
+			for (Action action : m_Actions)
+			{
+				for (State goal : m_GoalStates)
+				{
+
+					if (action.startingState == m_InitialState && action.endState == goal && action.actionType == Function::InteractFunction)
+					{
+						m_CurrentAction = action;
+						break;
+					}
+				}
+			}
+
+			break;
+		case Directive::MoveHere:
+			// make possible goal states for moving (goal states being the position of focus)
+			for (State state : m_PossibleStates)
+			{
+				if (m_Focus->GetActorLocation().Equals(state.tile->GetActorLocation())) // find tiles that match location of focus
+				{
+					m_GoalStates.Add(state); // within range, this state is a possible goal state
+				}
+			}
+
+			for (Action action : m_Actions)
+			{
+				for (State goal : m_GoalStates)
+				{
+
+					if (action.startingState == m_InitialState && action.endState == goal && action.actionType == Function::MoveFunction)
+					{
+						m_CurrentAction = action;
+						break;
+					}
+				}
+			}
+			
+			break;
+		case Directive::DoNothing:
+		default:
+			// no possible goal states
+			break;
+		}
+
+		
+		
 	}
+	CallAction(m_CurrentAction);
 
 }
 
@@ -52,5 +254,93 @@ void ANPC::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+}
+
+void ANPC::Move(State startState, State endState)
+{
+	// move between tiles
+	if (!startState.tile->GetConnectedTiles().Contains(endState.tile) || endState.tile->GetType() != TileType::None)
+	{
+		m_InitialState.tile = startState.tile;
+		m_InitialState.actionState = endState.actionState;
+		m_InitialState.tile->SetType(TileType::NPC);
+		m_CurrentAction.actionType = Function::NullAction;
+		m_Directive = Directive::DoNothing;
+		return;
+	}
+
+	FVector2D currentPos = FVector2D{ startState.tile->GetActorLocation().X, startState.tile->GetActorLocation().Y };
+	FVector2D endPos = FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y };
+	// use 2D vectors for movement as Z is constrained
+	FVector2D moveVector = (endPos - currentPos).GetSafeNormal();
+	moveVector *= m_WalkSpeed;
+	FVector newLocation = GetActorLocation() + FVector{ moveVector.X, moveVector.Y, 0.0f };
+	SetActorLocation(newLocation);
+	currentPos = FVector2D{ newLocation.X, newLocation.Y };
+	if (currentPos.Equals(endPos))
+	{
+		// successful move
+		m_InitialState.tile = endState.tile;
+		m_InitialState.actionState = endState.actionState;
+		m_InitialState.tile->SetType(TileType::NPC);
+		startState.tile->SetType(TileType::None);
+		m_CurrentAction.actionType = Function::NullAction;
+		m_Directive = Directive::DoNothing;
+	}
+}
+
+void ANPC::Attack(State startState, State endState)
+{
+	// while target on endstate is alive
+	if (endState.tile->GetType() == TileType::NPC && m_Focus != nullptr)
+	{
+		if (FVector::Distance(startState.tile->GetActorLocation(), endState.tile->GetActorLocation()) <= m_AttackRange)
+		{
+			// if endstate is within range of startstate and the endstate tile type is defined as having an NPC on it, then apply damage to that npc
+
+			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("Attack"));
+			UGameplayStatics::ApplyDamage(m_Focus, m_Damage, nullptr, this, NULL);
+			return;
+		}
+		else {
+			// exit action
+			m_InitialState.tile = startState.tile; // attacking function, do not change tile position 
+			m_InitialState.actionState = endState.actionState; // attack has finished, reset directive
+			m_CurrentAction.actionType = Function::NullAction;
+			m_Directive = Directive::DoNothing;
+			
+			return;
+		}
+	}
+	// exit action
+	m_InitialState.tile = startState.tile;
+	m_InitialState.actionState = endState.actionState;
+	m_CurrentAction.actionType = Function::NullAction;
+	m_Directive = Directive::DoNothing;
+	
+}
+
+void ANPC::Interact(State startState, State endState)
+{
+
+}
+
+void ANPC::CallAction(Action action)
+{
+	// all functions are closed loops that will run until action is complete
+	switch (action.actionType)
+	{
+	case Function::MoveFunction:
+		Move(action.startingState, action.endState); // action is complete when end state is either reached or deemed impossible to get to
+		break;
+	case Function::AttackFunction:
+		Attack(action.startingState, action.endState); // action is complete when an attack is launched at the focus or deemed impossible to attack or focus changes
+		break;
+	case Function::InteractFunction:
+		Interact(action.startingState, action.endState);
+	default:
+		// do nothing
+		break;
+	}
 }
 

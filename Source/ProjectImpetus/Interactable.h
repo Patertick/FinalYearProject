@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "Interactable.generated.h"
 
+class UStaticMeshComponent;
+
 UCLASS()
 class PROJECTIMPETUS_API AInteractable : public AActor
 {
@@ -14,6 +16,9 @@ class PROJECTIMPETUS_API AInteractable : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AInteractable();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh)
+		UStaticMeshComponent* m_Mesh { nullptr };
 
 protected:
 	// Called when the game starts or when spawned
