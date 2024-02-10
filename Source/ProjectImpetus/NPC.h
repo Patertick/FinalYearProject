@@ -110,7 +110,7 @@ private:
 
 	float m_Damage{ 10.0f };
 
-	float m_AttackRange{ 15000.0f };
+	float m_AttackRange{ KTILEMAXDISTANCE * 2 };
 
 	float m_Health{ 100.0f };
 	float m_MaxHealth{ 100.0f };

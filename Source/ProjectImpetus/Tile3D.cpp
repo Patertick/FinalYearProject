@@ -41,12 +41,12 @@ void ATile3D::BeginPlay()
 // Called every frame
 void ATile3D::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);/*
-	if (m_Type == TileType::NPC)
-	{
-		FString tempString = "NPC" + GetName();
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, *tempString);
-	}*/
+	Super::Tick(DeltaTime);
+	//if (m_Type == TileType::Object)
+	//{
+	//	FString tempString = "Object" + GetName();
+	//	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, *tempString);
+	//}
 
 }
 

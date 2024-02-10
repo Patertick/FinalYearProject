@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NPC.h"
 #include "Interactable.generated.h"
 
 class UStaticMeshComponent;
@@ -27,5 +28,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	void Interact(ANPC* interactingNPC);
 
 };
