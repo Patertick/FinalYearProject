@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Interactable.h"
 #include <Kismet/GameplayStatics.h>
+#include "NPC.h"
 #include "SensorBrain.h"
 
 // Sets default values for this component's properties
@@ -20,12 +20,12 @@ USensorBrain::USensorBrain()
 void USensorBrain::BeginPlay()
 {
 	Super::BeginPlay();
-
-
-	m_OldTransform.SetLocation(FVector{ 0.0f, 0.0f, 0.0f });
-	m_OldTransform.SetRotation(FQuat{ 0.0f,0.0f, 0.0f , 0.0f });
-	m_OldTransform.SetScale3D(FVector{ 1.0f, 1.0f, 1.0f });
 	// ...
+
+	// get all actors in level
+	TArray<AActor*> Actors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), Actors);
+	m_ActorsInLevel = Actors;
 	
 }
 
@@ -35,72 +35,68 @@ void USensorBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	if (m_NPCRef == nullptr) return;
 
 	if (m_NPCRef->m_Blind == false)
 	{
-		
+		// if rotation or location changes then the view changes
+		// thus we calculate all the objects within this new view
+		m_View.forwardVector = m_NPCRef->GetActorForwardVector();
 
-		if (m_OldTransform.GetLocation() != m_NPCRef->GetActorTransform().GetLocation() || m_OldTransform.GetRotation() != m_NPCRef->GetActorTransform().GetRotation())
+		m_View.origin = m_NPCRef->GetActorLocation();
+
+		//// reset seens
+		//for (AActor* actor : m_ObjectsWithinView)
+		//{
+		//	// set material to some arbritrary material that denotes being seen
+
+		//	if (Cast<ATile3D>(actor) != nullptr)
+		//	{
+		//		Cast<ATile3D>(actor)->m_IsSeen = false;
+		//	}
+		//	else if (Cast<AInteractable>(actor) != nullptr)
+		//	{
+		//		Cast<AInteractable>(actor)->m_IsSeen = false;
+		//	}
+		//	else if (Cast<ANPC>(actor) != nullptr)
+		//	{
+		//		Cast<ANPC>(actor)->m_IsSeen = false;
+		//	}
+		//}
+
+		m_ObjectsWithinView.Empty();
+		for (AActor* actor : m_ActorsInLevel)
 		{
-			m_OldTransform = m_NPCRef->GetTransform();
-			// if rotation or location changes then the view changes
-			// thus we calculate all the objects within this new view
-			m_View.origin = m_OldTransform.GetLocation();
-			m_View.forwardVector = m_NPCRef->GetActorForwardVector();
-
-			// get all actors in level
-			TArray<AActor*> Actors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), Actors);
-
-			// reset seens
-			for (AActor* Object : m_ObjectsWithinView)
+			if (IsInView(actor) && actor != m_NPCRef && IsNotObstructed(actor))
 			{
-				// set material to some arbritrary material that denotes being seen
-
-				if (Cast<ATile3D>(Object) != nullptr)
-				{
-					Cast<ATile3D>(Object)->m_IsSeen = false;
-				}
-				else if (Cast<AInteractable>(Object) != nullptr)
-				{
-					Cast<AInteractable>(Object)->m_IsSeen = false;
-				}
-				else if (Cast<ANPC>(Object) != nullptr)
-				{
-					Cast<ANPC>(Object)->m_IsSeen = false;
-				}
-			}
-
-			m_ObjectsWithinView.Empty();
-			for (AActor* actor : Actors)
-			{
-				if (IsInView(actor) && actor != m_NPCRef && IsNotObstructed(actor))
-				{
-					// add to objects within view if it is within view and not obstructed
-					m_ObjectsWithinView.Add(actor);
-				}
-			}
-
-			// set new seens
-
-			for (AActor* Object : m_ObjectsWithinView)
-			{
-				// set material to some arbritrary material that denotes being seen
-
-				if (Cast<ATile3D>(Object) != nullptr)
-				{
-					Cast<ATile3D>(Object)->m_IsSeen = true;
-				}
-				else if (Cast<AInteractable>(Object) != nullptr)
-				{
-					Cast<AInteractable>(Object)->m_IsSeen = true;
-				}
-				else if (Cast<ANPC>(Object) != nullptr)
-				{
-					Cast<ANPC>(Object)->m_IsSeen = true;
-				}
+				// add to objects within view if it is within view and not obstructed
+				m_ObjectsWithinView.Add(actor);
 			}
 		}
+
+		//// reset seens
+		//for (AActor* actor : m_ObjectsWithinView)
+		//{
+		//	// set material to some arbritrary material that denotes being seen
+
+		//	if (Cast<ATile3D>(actor) != nullptr)
+		//	{
+		//		Cast<ATile3D>(actor)->m_IsSeen = true;
+		//	}
+		//	else if (Cast<AInteractable>(actor) != nullptr)
+		//	{
+		//		Cast<AInteractable>(actor)->m_IsSeen = true;
+		//	}
+		//	else if (Cast<ANPC>(actor) != nullptr)
+		//	{
+		//		Cast<ANPC>(actor)->m_IsSeen = true;
+		//	}
+		//}
+
+		// successful objects in view update
+
+		// send message to update memory with new array of objects in view
+		m_NPCRef->UpdateMemory(m_ObjectsWithinView);
 	}
 
 	// ...

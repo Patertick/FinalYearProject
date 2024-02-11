@@ -3,6 +3,7 @@
 
 #include "Interactable.h"
 #include "Components/StaticMeshComponent.h"
+#include "NPC.h"
 #include <Kismet/GameplayStatics.h>
 
 // Sets default values

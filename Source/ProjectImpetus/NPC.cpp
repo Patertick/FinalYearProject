@@ -2,7 +2,6 @@
 
 
 #include "NPC.h"
-#include "Interactable.h"
 #include <Kismet/GameplayStatics.h>
 
 // Sets default values
@@ -130,6 +129,8 @@ void ANPC::BeginPlay()
 void ANPC::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (!ValidNPC()) return;
 
 	if (m_Health <= 0.0f)
 	{

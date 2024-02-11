@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Tile3D.h"
+#include "Interactable.h"
 #include "SensorBrain.h"
+#include "MemoryBrain.h"
 #include "NPC.generated.h"
 
 
@@ -148,6 +150,8 @@ private:
 
 	USensorBrain* m_SensorBrain{ nullptr };
 
+	UMemoryBrain* m_MemoryBrain{ nullptr };
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -164,10 +168,12 @@ public:
 		void MarkAsThreat() { m_Threat = true; }
 	UFUNCTION(BlueprintCallable, Category = PlayerControl)
 		bool IsControllable() { return m_Controllable; }
+
+	// set brains
 	UFUNCTION(BlueprintCallable, Category = BrainSet)
-		void SetSensorBrain(USensorBrain* sensor) { 
-		m_SensorBrain = sensor; 
-	}
+		void SetSensorBrain(USensorBrain* sensor) { m_SensorBrain = sensor; }
+	UFUNCTION(BlueprintCallable, Category = BrainSet)
+		void SetMemoryBrain(UMemoryBrain* memory) { m_MemoryBrain = memory; }
 
 	// damage functions
 	UFUNCTION(BlueprintCallable, Category = Damage)
@@ -176,7 +182,19 @@ public:
 		m_AttackingEnemy = damageInstigator;
 	}
 
+	// robustness functions
+	UFUNCTION(BlueprintCallable, Category = Robust)
+		bool ValidNPC() {
+		if (m_SensorBrain == nullptr || m_MemoryBrain == nullptr)
+		{
+			return false;
+		}
+		return true;
+	}
+
 	void CallAction(Action action);
+
+	void UpdateMemory(TArray<AActor*> actorsInView) { m_MemoryBrain->UpdateObjectsInMemory(actorsInView); } // call memory brain with new information
 
 };
 

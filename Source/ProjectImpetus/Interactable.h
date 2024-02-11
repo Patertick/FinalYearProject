@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "NPC.h"
 #include "Interactable.generated.h"
 
 class UStaticMeshComponent;
+
+class ANPC;
 
 UCLASS()
 class PROJECTIMPETUS_API AInteractable : public AActor

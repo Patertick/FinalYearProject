@@ -4,37 +4,31 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "SensorBrain.generated.h"
+#include "MemoryBrain.generated.h"
 
-
-struct View {
-	FVector origin;
-	FVector forwardVector;
-	float fov;
-	float maxDist;
+struct ActorSnapShot {
+	// data
+	FVector location;
+	FString actorName; // use this to cross reference for updates
 };
 
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class PROJECTIMPETUS_API USensorBrain : public UActorComponent
+class PROJECTIMPETUS_API UMemoryBrain : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:	
 	// Sets default values for this component's properties
-	USensorBrain();
-
+	UMemoryBrain();
 
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
-
+	
 private:
-
 	ANPC* m_NPCRef{ nullptr }; // reference to the object this brain works for
-	TArray<AActor*> m_ObjectsWithinView;
-	View m_View;
-
-	TArray<AActor*> m_ActorsInLevel;
+	TArray<ActorSnapShot> m_ObjectsInMemory; // will copy actor pointers into this array
 
 public:	
 	// Called every frame
@@ -43,11 +37,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SetNPC)
 		void SetNPC(ANPC* npc) { m_NPCRef = npc; }
 
-	TArray<AActor*> GetAllObjectsWithinView() { return m_ObjectsWithinView; }
-	void SetFieldOfView(float newFOV) { m_View.fov = newFOV; }
-	void SetMaxViewDistance(float newDistance) { m_View.maxDist = newDistance; }
-	bool IsNotObstructed(AActor* actor);
-	bool IsInView(AActor* actor);
+	void UpdateObjectsInMemory(TArray<AActor*> actorsInView);
 
 		
 };
