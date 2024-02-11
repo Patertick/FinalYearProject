@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Tile3D.h"
+#include "SensorBrain.h"
 #include "NPC.generated.h"
 
 
@@ -80,6 +81,12 @@ public:
 		bool m_Threat{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 		float m_DeltaTime{ 0.0f };
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement)
+		float m_HalfHeight{ 88.0f };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+		bool m_Blind{ false };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+		bool m_IsSeen{ false };
 
 protected:
 	// Called when the game starts or when spawned
@@ -94,9 +101,17 @@ private:
 	Directive m_Directive{ Directive::DoNothing };
 	bool m_Controllable{ false };
 
+	// sensory variables
+
+	float m_FieldOfView{ 90.0f };
+
+	float m_MaxViewDistance{ 1000.0f };
+
 	// movement variables
 
 	const float KTILEMAXDISTANCE{ 150.0f }; // max distance between tiles (100x100x100)
+
+	
 
 	float m_WalkSpeed{ 2.0f };
 	
@@ -128,6 +143,11 @@ private:
 
 	Action m_CurrentAction; // current action this NPC is performing
 
+
+	// brains
+
+	USensorBrain* m_SensorBrain{ nullptr };
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -144,6 +164,10 @@ public:
 		void MarkAsThreat() { m_Threat = true; }
 	UFUNCTION(BlueprintCallable, Category = PlayerControl)
 		bool IsControllable() { return m_Controllable; }
+	UFUNCTION(BlueprintCallable, Category = BrainSet)
+		void SetSensorBrain(USensorBrain* sensor) { 
+		m_SensorBrain = sensor; 
+	}
 
 	// damage functions
 	UFUNCTION(BlueprintCallable, Category = Damage)

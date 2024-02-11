@@ -20,6 +20,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh)
 		UStaticMeshComponent* m_Mesh { nullptr };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+		bool m_IsSeen{ false };
 
 protected:
 	// Called when the game starts or when spawned

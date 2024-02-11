@@ -138,6 +138,9 @@ void ANPC::Tick(float DeltaTime)
 		return;
 	}
 
+	m_SensorBrain->SetFieldOfView(m_FieldOfView);
+	m_SensorBrain->SetMaxViewDistance(m_MaxViewDistance);
+
 	m_Controllable = !m_Threat;
 
 	// when the NPC has no action, try to find a new one given the NPC has a focus (or goal)
@@ -281,7 +284,7 @@ void ANPC::Move(State startState, State endState)
 		return;
 	}
 
-	FVector2D currentPos = FVector2D{ startState.tile->GetActorLocation().X, startState.tile->GetActorLocation().Y };
+	FVector2D currentPos = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
 	FVector2D endPos = FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y };
 	// use 2D vectors for movement as Z is constrained
 	FVector2D moveVector = (endPos - currentPos).GetSafeNormal();
@@ -289,10 +292,14 @@ void ANPC::Move(State startState, State endState)
 	FVector newLocation = GetActorLocation() + FVector{ moveVector.X, moveVector.Y, 0.0f };
 	SetActorLocation(newLocation);
 	currentPos = FVector2D{ newLocation.X, newLocation.Y };
-	if (currentPos.Equals(endPos))
+
+	if (currentPos.Equals(endPos, m_WalkSpeed))
 	{
 		// successful move
 		m_InitialState.tile = endState.tile;
+
+		SetActorLocation(FVector{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y, m_HalfHeight });
+
 		m_InitialState.actionState = endState.actionState;
 		m_InitialState.tile->SetType(TileType::NPC);
 		startState.tile->SetType(TileType::None);
@@ -362,19 +369,15 @@ void ANPC::CallAction(Action action)
 	switch (action.actionType)
 	{
 	case Function::MoveFunction:
-		GEngine->AddOnScreenDebugMessage(1, 2.0f, FColor::Blue, TEXT("Move"));
 		Move(action.startingState, action.endState); // action is complete when end state is either reached or deemed impossible to get to
 		break;
 	case Function::AttackFunction:
-		GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, TEXT("Attack"));
 		Attack(action.startingState, action.endState); // action is complete when an attack is launched at the focus or deemed impossible to attack or focus changes
 		break;
 	case Function::InteractFunction:
-		GEngine->AddOnScreenDebugMessage(3, 2.0f, FColor::Yellow, TEXT("Interact"));
 		Interact(action.startingState, action.endState);
 	default:
 		// do nothing
-		GEngine->AddOnScreenDebugMessage(4, 2.0f, FColor::Black, TEXT("Null"));
 		break;
 	}
 }

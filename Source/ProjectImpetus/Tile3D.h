@@ -17,6 +17,9 @@ enum TileType
 };
 
 
+
+static const float KTILESIZE{ 100.0f };
+
 UCLASS()
 class PROJECTIMPETUS_API ATile3D : public AActor
 {
@@ -28,6 +31,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh)
 		UStaticMeshComponent* m_Mesh { nullptr };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+		bool m_IsSeen{ false };
+
+	
 
 protected:
 	// Called when the game starts or when spawned
@@ -47,5 +54,7 @@ public:
 	TileType GetType() { return m_Type; }
 
 	TArray<ATile3D*> GetConnectedTiles() { return m_connectedTiles; }
+
+	static float TileSize() { return KTILESIZE; }
 
 };
