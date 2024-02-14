@@ -57,20 +57,20 @@ void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 			newSnapshot.location = actor->GetActorLocation();
 			m_ObjectsInMemory.Add(newSnapshot);
 
-			// set material to some arbritrary material that denotes being seen
+			//// set material to some arbritrary material that denotes being seen
 
-			if (Cast<ATile3D>(actor) != nullptr)
-			{
-				Cast<ATile3D>(actor)->m_IsSeen = true;
-			}
-			else if (Cast<AInteractable>(actor) != nullptr)
-			{
-				Cast<AInteractable>(actor)->m_IsSeen = true;
-			}
-			else if (Cast<ANPC>(actor) != nullptr)
-			{
-				Cast<ANPC>(actor)->m_IsSeen = true;
-			}
+			//if (Cast<ATile3D>(actor) != nullptr)
+			//{
+			//	Cast<ATile3D>(actor)->m_IsSeen = true;
+			//}
+			//else if (Cast<AInteractable>(actor) != nullptr)
+			//{
+			//	Cast<AInteractable>(actor)->m_IsSeen = true;
+			//}
+			//else if (Cast<ANPC>(actor) != nullptr)
+			//{
+			//	Cast<ANPC>(actor)->m_IsSeen = true;
+			//}
 		}
 	}
 	

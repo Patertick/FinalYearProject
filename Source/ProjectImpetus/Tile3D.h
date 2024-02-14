@@ -44,6 +44,7 @@ private:
 	const float KMAXTILEDISTANCE{ 150.0f };
 	TileType m_Type{ TileType::None };
 	TArray<ATile3D*> m_connectedTiles;
+	float m_Weight{ 1.0f };
 
 public:	
 	// Called every frame
@@ -54,6 +55,8 @@ public:
 	TileType GetType() { return m_Type; }
 
 	TArray<ATile3D*> GetConnectedTiles() { return m_connectedTiles; }
+
+	float GetWeight() { return m_Weight; }
 
 	static float TileSize() { return KTILESIZE; }
 

@@ -139,6 +139,11 @@ void ANPC::Tick(float DeltaTime)
 		return;
 	}
 
+	if (Cast<ATile3D>(m_Focus) != nullptr)
+	{
+		m_PlanningBrain->FindAStarPath(m_InitialState.tile, Cast<ATile3D>(m_Focus));
+	}
+
 	m_SensorBrain->SetFieldOfView(m_FieldOfView);
 	m_SensorBrain->SetMaxViewDistance(m_MaxViewDistance);
 

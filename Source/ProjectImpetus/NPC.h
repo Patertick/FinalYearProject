@@ -8,6 +8,7 @@
 #include "Interactable.h"
 #include "SensorBrain.h"
 #include "MemoryBrain.h"
+#include "PlanningBrain.h"
 #include "NPC.generated.h"
 
 
@@ -68,15 +69,17 @@ class PROJECTIMPETUS_API ANPC : public ACharacter
 	GENERATED_BODY()
 
 
-	// define lambda function type
-	typedef void(ANPC::*Functions)(void);
+		// define lambda function type
+		typedef void(ANPC::* Functions)(void);
 public:
 
 	// Sets default values for this character's properties
 	ANPC();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Identifiers)
-		int32 ID { 0 };
+		int32 ID {
+		0
+	};
 
 	// perception properties, as in what is this NPC perceived to be
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PerceptionProperties)
@@ -113,10 +116,10 @@ private:
 
 	const float KTILEMAXDISTANCE{ 150.0f }; // max distance between tiles (100x100x100)
 
-	
+
 
 	float m_WalkSpeed{ 2.0f };
-	
+
 	float m_FollowRange{ 300.0f };
 
 	// attacking variables
@@ -152,7 +155,9 @@ private:
 
 	UMemoryBrain* m_MemoryBrain{ nullptr };
 
-public:	
+	UPlanningBrain* m_PlanningBrain{ nullptr };
+
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -174,6 +179,8 @@ public:
 		void SetSensorBrain(USensorBrain* sensor) { m_SensorBrain = sensor; }
 	UFUNCTION(BlueprintCallable, Category = BrainSet)
 		void SetMemoryBrain(UMemoryBrain* memory) { m_MemoryBrain = memory; }
+	UFUNCTION(BlueprintCallable, Category = BrainSet)
+		void SetPlanningBrain(UPlanningBrain* planning) { m_PlanningBrain = planning; }
 
 	// damage functions
 	UFUNCTION(BlueprintCallable, Category = Damage)
@@ -185,7 +192,7 @@ public:
 	// robustness functions
 	UFUNCTION(BlueprintCallable, Category = Robust)
 		bool ValidNPC() {
-		if (m_SensorBrain == nullptr || m_MemoryBrain == nullptr)
+		if (m_SensorBrain == nullptr || m_MemoryBrain == nullptr || m_PlanningBrain == nullptr) // invalid if any agent is null
 		{
 			return false;
 		}
