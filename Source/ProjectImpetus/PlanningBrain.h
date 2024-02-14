@@ -20,6 +20,19 @@ struct Node {
 	float heuristicCost;
 	ATile3D* associatedTile;
 	Node* parent;
+
+	Node(float actual, float heuristic, ATile3D* tileRef, Node* prnt)
+	{
+		actualCost = actual;
+		heuristicCost = heuristic;
+		totalCostFromGoal = actual + heuristic;
+		associatedTile = tileRef;
+		parent = prnt;
+	}
+
+	~Node() {
+		delete this;
+	}
 };
 // for use in A* algorithm only end
 

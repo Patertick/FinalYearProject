@@ -32,7 +32,8 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 	// ...
 }
-
+static TArray<Node*> allNodes;
+static TArray<Node*> copyNodes;
 
 Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 {
@@ -42,16 +43,14 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 
 	TArray<Node*> closedList; // checked tiles
 	TArray<Node*> openList; // tiles to be checked
+	
 
-	Node* startNode = new Node();
-
-	startNode->associatedTile = startTile;
-	startNode->actualCost = 0;
-	startNode->heuristicCost = FVector::Distance(startTile->GetActorLocation(), endTile->GetActorLocation());
-	startNode->totalCostFromGoal = startNode->actualCost + startNode->heuristicCost;
-	startNode->parent = nullptr;
+	heuristicCost = FVector::Distance(startTile->GetActorLocation(), endTile->GetActorLocation());
+	Node* startNode = new Node(0, heuristicCost, startTile, nullptr);
 
 	openList.Add(startNode);
+	allNodes.Add(startNode);
+	copyNodes.Add(startNode);
 
 	while (foundPath == false && openList.Num() != 0) // while there are tiles to be checked and thus path has not been found
 	{
@@ -76,31 +75,30 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 			// if goal has been found exit search
 			if (tile == endTile)
 			{
-				Node* newNode = new Node();
-				newNode->parent = closestNode;
-				newNode->associatedTile = endTile;
-				newNode->actualCost = closestNode->actualCost + tile->GetWeight();
-				newNode->heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
-				newNode->totalCostFromGoal = newNode->actualCost + newNode->heuristicCost;
+				heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
+				Node* newNode = new Node(closestNode->actualCost + tile->GetWeight(), heuristicCost, endTile, closestNode);
 				closedList.Add(newNode);
+				allNodes.Add(newNode);
+				copyNodes.Add(startNode);
 				foundPath = true;
 				break;
 			}
 
-			Node* newNode = new Node();
-			newNode->parent = closestNode;
-			newNode->associatedTile = tile;
-			newNode->actualCost = closestNode->actualCost + tile->GetWeight();
-			newNode->heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
-			newNode->totalCostFromGoal = newNode->actualCost + newNode->heuristicCost;
+
+			heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
+			Node* newNode = new Node(closestNode->actualCost + tile->GetWeight(), heuristicCost, tile, closestNode);
 
 			if (!InList(openList, newNode->associatedTile) && !InList(closedList, newNode->associatedTile) && newNode->associatedTile->GetType() == TileType::None)
 			{
 				openList.Add(newNode);
+				allNodes.Add(newNode);
+				copyNodes.Add(startNode);
 			}
 		}
 
 		closedList.Add(closestNode);
+		allNodes.Add(closestNode);
+		copyNodes.Add(startNode);
 
 		
 	}
@@ -119,13 +117,11 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 		}
 		if (currentNode != nullptr)
 		{
-			int count{ 0 };
-			while (currentNode->associatedTile != startTile && count <= 100)
+			while (currentNode->associatedTile != startTile)
 			{
 				path.tiles.Add(currentNode->associatedTile);
 				path.totalCost += currentNode->totalCostFromGoal;
 				currentNode = currentNode->parent;
-				count++;
 			}
 			for (ATile3D* tile : path.tiles)
 			{
@@ -135,46 +131,35 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 				}
 			}
 
-			//// collect pointers and delete them so as not to waste memory
-			//for (int i = 0; i < closedList.Num(); i++)
-			//{
-			//	if (closedList[i] != nullptr)
-			//	{
-			//		delete closedList[i];
-			//	}
-			//}
-
-			//for (int i = 0; i < openList.Num(); i++)
-			//{
-			//	if (openList[i] != nullptr)
-			//	{
-			//		delete openList[i];
-			//	}
-			//}
-
-			//delete startNode;
+			// collect pointers and delete them so as not to waste memory
+			//openList.Empty();
+			//closedList.Empty();
+			//copyNodes.Empty();
+			int count{ 0 };
+			for (int i = 0; i < openList.Num(); i++)
+			{
+				delete openList[i];
+			}
+			for (int i = 0; i < closedList.Num(); i++)
+			{
+				delete closedList[i];
+			}
+			for (Node* node : allNodes)
+			{
+				if (node != nullptr)
+				{
+					count++;
+				}
+			}
+			FString tempString = FString::SanitizeFloat(count) + " Number of pointers";
+			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, *tempString);
 
 			return path;
 		}
 	}
 
-	/*for (int i = 0; i < closedList.Num(); i++)
-	{
-		if (closedList[i] != nullptr)
-		{
-			delete closedList[i];
-		}
-	}
-
-	for (int i = 0; i < openList.Num(); i++)
-	{
-		if (openList[i] != nullptr)
-		{
-			delete openList[i];
-		}
-	}*/
-
-	delete startNode;
+	openList.Empty();
+	closedList.Empty();
 
 	Path path;
 	path.totalCost = -1; // invalid identifier
