@@ -14,24 +14,32 @@ struct Path {
 	float totalCost;
 };
 
-struct Node {
+struct FNode {
 	float totalCostFromGoal;
 	float actualCost;
 	float heuristicCost;
 	ATile3D* associatedTile;
-	Node* parent;
+	ATile3D* parentTile;
 
-	Node(float actual, float heuristic, ATile3D* tileRef, Node* prnt)
+	void operator=(FNode other)
+	{
+		totalCostFromGoal = other.totalCostFromGoal;
+		actualCost = other.actualCost;
+		heuristicCost = other.heuristicCost;
+		associatedTile = other.associatedTile;
+		parentTile = other.parentTile;
+	}
+
+	FNode(float actual, float heuristic, ATile3D* tileRef, ATile3D* prnt)
 	{
 		actualCost = actual;
 		heuristicCost = heuristic;
 		totalCostFromGoal = actual + heuristic;
 		associatedTile = tileRef;
-		parent = prnt;
+		parentTile = prnt;
 	}
 
-	~Node() {
-		delete this;
+	~FNode() {
 	}
 };
 // for use in A* algorithm only end
@@ -52,6 +60,8 @@ protected:
 private:
 	ANPC* m_NPCRef{ nullptr }; // reference to the object this brain works for
 
+	UPROPERTY()
+		TArray<FNode> m_NodesInUse;
 
 	// weights for use in altering A* (from djikstra's to best first search)
 	float m_HeuristicWeight{ 0.5f };
@@ -65,7 +75,7 @@ public:
 
 	// only start and end tile are needed, each tile stores connected tiles so that's our search space
 	Path FindAStarPath(ATile3D* startTile, ATile3D* endTile);
-	bool InList(const TArray<Node*>& list, ATile3D* tile);
-	int FindRemoveIndex(const TArray<Node*>& list, Node* nodeToRemove);
+	bool InList(const TArray<FNode>& list, ATile3D* tile);
+	int FindRemoveIndex(const TArray<FNode>& list, FNode nodeToRemove);
 		
 };

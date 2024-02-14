@@ -124,6 +124,7 @@ void ANPC::BeginPlay()
 
 	
 }
+static bool calledA { false };
 
 // Called every frame
 void ANPC::Tick(float DeltaTime)
@@ -138,10 +139,18 @@ void ANPC::Tick(float DeltaTime)
 		Destroy(); // death
 		return;
 	}
-
 	if (Cast<ATile3D>(m_Focus) != nullptr)
 	{
-		m_PlanningBrain->FindAStarPath(m_InitialState.tile, Cast<ATile3D>(m_Focus));
+		if (!calledA)
+		{
+			Path path = m_PlanningBrain->FindAStarPath(m_InitialState.tile, Cast<ATile3D>(m_Focus));
+			if (path.totalCost >= 0)
+			{
+				// valid path
+				calledA = true;
+			}
+		}
+		
 	}
 
 	m_SensorBrain->SetFieldOfView(m_FieldOfView);

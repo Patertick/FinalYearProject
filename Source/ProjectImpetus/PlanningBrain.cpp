@@ -32,8 +32,6 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 	// ...
 }
-static TArray<Node*> allNodes;
-static TArray<Node*> copyNodes;
 
 Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 {
@@ -41,24 +39,23 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 
 	bool foundPath{ false };
 
-	TArray<Node*> closedList; // checked tiles
-	TArray<Node*> openList; // tiles to be checked
+	TArray<FNode> closedList; // checked tiles
+	TArray<FNode> openList; // tiles to be checked
 	
 
 	heuristicCost = FVector::Distance(startTile->GetActorLocation(), endTile->GetActorLocation());
-	Node* startNode = new Node(0, heuristicCost, startTile, nullptr);
+	FNode startNode = FNode(0, heuristicCost, startTile, nullptr);
 
 	openList.Add(startNode);
-	allNodes.Add(startNode);
-	copyNodes.Add(startNode);
+	m_NodesInUse.Add(startNode);
 
 	while (foundPath == false && openList.Num() != 0) // while there are tiles to be checked and thus path has not been found
 	{
 		// find node in open list with lowest total cost
-		Node* closestNode = openList[0];
-		for (Node* node : openList)
+		FNode closestNode = openList[0];
+		for (FNode node : openList)
 		{
-			if (closestNode->totalCostFromGoal > node->totalCostFromGoal)
+			if (closestNode.totalCostFromGoal > node.totalCostFromGoal)
 			{
 				closestNode = node;
 			}
@@ -68,7 +65,7 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 		int index = FindRemoveIndex(openList, closestNode);
 		if (index >= 0) openList.RemoveAt(index);
 
-		TArray<ATile3D*> connectedTiles = closestNode->associatedTile->GetConnectedTiles();
+		TArray<ATile3D*> connectedTiles = closestNode.associatedTile->GetConnectedTiles();
 
 		for (ATile3D* tile : connectedTiles)
 		{
@@ -76,29 +73,26 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 			if (tile == endTile)
 			{
 				heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
-				Node* newNode = new Node(closestNode->actualCost + tile->GetWeight(), heuristicCost, endTile, closestNode);
+				FNode newNode = FNode(closestNode.actualCost + tile->GetWeight(), heuristicCost, endTile, closestNode.associatedTile);
 				closedList.Add(newNode);
-				allNodes.Add(newNode);
-				copyNodes.Add(startNode);
+				m_NodesInUse.Add(startNode);
 				foundPath = true;
 				break;
 			}
 
 
 			heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
-			Node* newNode = new Node(closestNode->actualCost + tile->GetWeight(), heuristicCost, tile, closestNode);
+			FNode newNode = FNode(closestNode.actualCost + tile->GetWeight(), heuristicCost, tile, closestNode.associatedTile);
 
-			if (!InList(openList, newNode->associatedTile) && !InList(closedList, newNode->associatedTile) && newNode->associatedTile->GetType() == TileType::None)
+			if (!InList(openList, newNode.associatedTile) && !InList(closedList, newNode.associatedTile) && newNode.associatedTile->GetType() == TileType::None)
 			{
 				openList.Add(newNode);
-				allNodes.Add(newNode);
-				copyNodes.Add(startNode);
+				m_NodesInUse.Add(startNode);
 			}
 		}
 
 		closedList.Add(closestNode);
-		allNodes.Add(closestNode);
-		copyNodes.Add(startNode);
+		m_NodesInUse.Add(startNode);
 
 		
 	}
@@ -106,22 +100,28 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 	if (InList(closedList, startTile) && InList(closedList, endTile)) // valid path
 	{
 		Path path;
-		Node* currentNode = nullptr;
-		for (Node* node : closedList)
+		FNode currentNode = FNode(0, 0, nullptr, nullptr);
+		for (FNode node : closedList)
 		{
-			if (node->associatedTile == endTile)
+			if (node.associatedTile == endTile)
 			{
 				currentNode = node;
 				break;
 			}
 		}
-		if (currentNode != nullptr)
+		if (currentNode.associatedTile != nullptr)
 		{
-			while (currentNode->associatedTile != startTile)
+			while (currentNode.associatedTile != startTile)
 			{
-				path.tiles.Add(currentNode->associatedTile);
-				path.totalCost += currentNode->totalCostFromGoal;
-				currentNode = currentNode->parent;
+				path.tiles.Add(currentNode.associatedTile);
+				path.totalCost += currentNode.totalCostFromGoal;
+				for (FNode node : closedList)
+				{
+					if (node.associatedTile == currentNode.parentTile)
+					{
+						currentNode = node;
+					}
+				}
 			}
 			for (ATile3D* tile : path.tiles)
 			{
@@ -131,35 +131,9 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 				}
 			}
 
-			// collect pointers and delete them so as not to waste memory
-			//openList.Empty();
-			//closedList.Empty();
-			//copyNodes.Empty();
-			int count{ 0 };
-			for (int i = 0; i < openList.Num(); i++)
-			{
-				delete openList[i];
-			}
-			for (int i = 0; i < closedList.Num(); i++)
-			{
-				delete closedList[i];
-			}
-			for (Node* node : allNodes)
-			{
-				if (node != nullptr)
-				{
-					count++;
-				}
-			}
-			FString tempString = FString::SanitizeFloat(count) + " Number of pointers";
-			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, *tempString);
-
 			return path;
 		}
 	}
-
-	openList.Empty();
-	closedList.Empty();
 
 	Path path;
 	path.totalCost = -1; // invalid identifier
@@ -168,11 +142,11 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 }
 
 
-bool UPlanningBrain::InList(const TArray<Node*>& list, ATile3D* tile)
+bool UPlanningBrain::InList(const TArray<FNode>& list, ATile3D* tile)
 {
-	for (Node* node : list)
+	for (FNode node : list)
 	{
-		if (node->associatedTile == tile)
+		if (node.associatedTile == tile)
 		{
 			return true;
 		}
@@ -180,11 +154,11 @@ bool UPlanningBrain::InList(const TArray<Node*>& list, ATile3D* tile)
 	return false;
 }
 
-int UPlanningBrain::FindRemoveIndex(const TArray<Node*>& list, Node* nodeToRemove)
+int UPlanningBrain::FindRemoveIndex(const TArray<FNode>& list, FNode nodeToRemove)
 {
 	for (int i = 0; i < list.Num(); i++)
 	{
-		if (list[i]->associatedTile == nodeToRemove->associatedTile)
+		if (list[i].associatedTile == nodeToRemove.associatedTile)
 		{
 			return i;
 		}
