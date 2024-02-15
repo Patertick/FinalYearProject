@@ -101,6 +101,9 @@ void UPlanningBrain::BeginPlay()
 			else m_Actions.Add(newAction);
 		}
 	}
+
+	m_InitialState.actionState = ActionState::DoingNothing;
+	m_InitialState.tile = nullptr;
 	
 }
 
@@ -109,6 +112,13 @@ void UPlanningBrain::BeginPlay()
 void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (m_InitialState.tile == nullptr)
+	{
+		FVector2D npcLocation = FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y };
+		m_InitialState.tile = FindClosestTile(npcLocation);
+		m_InitialState.tile->SetType(TileType::NPC);
+	}
 
 	// ...
 	if (m_NPCRef->GetDirective() == Directive::MoveHere)
@@ -133,34 +143,9 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			}
 		}
 
-		if (goalState.tile == nullptr)
+		if (goalState.tile == nullptr || goalState.tile == m_InitialState.tile)
 		{
 			return;
-		}
-
-		// generate A* path
-
-		//GEngine->AddOnScreenDebugMessage(1, 2.0f, FColor::White, TEXT("Pathfinding call"));
-
-		//FString tempString = FString::SanitizeFloat(m_InitialState.tile->GetType());
-		//GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::White, *tempString);
-
-		if (m_InitialState.tile->GetType() != TileType::NPC)
-		{
-			GEngine->AddOnScreenDebugMessage(1, 2.0f, FColor::White, m_InitialState.tile->GetName() + " Initial state tile");
-			
-			GEngine->AddOnScreenDebugMessage(10, 2.0f, FColor::White,
-				FindClosestTile(FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y })->GetName() + " actual state tile");
-		}
-
-		if (goalState.tile->GetType() != TileType::None)
-		{
-			GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::White, TEXT("goal tile is not none"));
-		}
-
-		if (goalState.tile == m_InitialState.tile)
-		{
-			GEngine->AddOnScreenDebugMessage(3, 2.0f, FColor::White, TEXT("goal tile is start tile"));
 		}
 
 		Path newPath = FindAStarPath(m_InitialState.tile, goalState.tile);
@@ -229,7 +214,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			}
 		}
 
-		if (goalState.tile == nullptr)
+		if (goalState.tile == nullptr || goalState.tile == m_InitialState.tile)
 		{
 			return;
 		}
@@ -346,7 +331,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			}
 		}
 
-		if (goalState.tile == nullptr)
+		if (goalState.tile == nullptr || goalState.tile == m_InitialState.tile)
 		{
 			return;
 		}
@@ -606,15 +591,6 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 		
 	}
 
-	if (InList(closedList, startTile))
-	{
-		GEngine->AddOnScreenDebugMessage(6, 2.0f, FColor::White, TEXT("start in closed list"));
-	}
-	if (InList(closedList, endTile))
-	{
-		GEngine->AddOnScreenDebugMessage(7, 2.0f, FColor::White, TEXT("end in closed list"));
-	}
-
 	if (InList(closedList, startTile) && InList(closedList, endTile)) // valid path
 	{
 		Path reversePath;
@@ -627,7 +603,6 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 				break;
 			}
 		}
-		GEngine->AddOnScreenDebugMessage(5, 2.0f, FColor::White, TEXT("closed list find path"));
 		if (currentNode.associatedTile != nullptr)
 		{
 			while (currentNode.associatedTile != startTile)

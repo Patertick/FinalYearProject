@@ -20,17 +20,6 @@ void ANPC::BeginPlay()
 
 	// set current action to null
 	m_CurrentAction.actionType = Function::NullAction;
-
-
-
-	// SET INITIAL STATE
-
-	State newState;
-	FVector2D selfLocation = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-	newState.tile = m_PlanningBrain->FindClosestTile(selfLocation);
-	newState.actionState = ActionState::DoingNothing; // start off doing nothing
-	newState.tile->SetType(TileType::NPC);
-	m_PlanningBrain->SetInitialState(newState);
 	
 
 		

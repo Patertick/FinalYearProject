@@ -68,6 +68,12 @@ struct State {
 		}
 		return false;
 	}
+
+	void SetState(State other)
+	{
+		tile = other.tile;
+		actionState = other.actionState;
+	}
 };
 
 // Action enum and struct
@@ -196,7 +202,7 @@ public:
 	// get initial state and set initial state
 
 	State GetInitialState() { return m_InitialState; }
-	void SetInitialState(State newState) { m_InitialState = newState; }
+	void SetInitialState(State newState) { m_InitialState.SetState(newState); }
 
 
 		
