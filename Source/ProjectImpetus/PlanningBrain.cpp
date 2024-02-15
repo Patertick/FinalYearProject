@@ -374,11 +374,13 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	}
 	else if (m_NPCRef->GetDirective() == Directive::FollowThis)
 	{
-		if (!m_NPCRef->IsExecutingAction())
-		{
-			// don't calculate path if action is being executed, waste of processing
-			return;
-		}
+		//if (!m_NPCRef->IsExecutingAction())
+		//{
+		//	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Black, TEXT("Follow"));
+		//	// don't calculate path if action is being executed, waste of processing
+		//	return;
+		//}
+
 
 		// empty action queue
 
@@ -453,8 +455,14 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		if (!m_ActionQueue.IsEmpty())
 		{
 			// run first action in queue
-			Action action = m_ActionQueue.GetFirstItem();
-			m_NPCRef->SetAction(action);
+			if (!m_ActionQueue.IsEmpty())
+			{
+				if (!m_NPCRef->IsExecutingAction())
+				{
+					Action action = m_ActionQueue.GetFirstItem();
+					m_NPCRef->SetAction(action);
+				}
+			}
 		}
 
 
