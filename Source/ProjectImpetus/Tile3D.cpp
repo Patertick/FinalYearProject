@@ -4,6 +4,7 @@
 #include "Tile3D.h"
 #include <Kismet/GameplayStatics.h>
 #include <string>
+
 // Sets default values
 ATile3D::ATile3D()
 {
@@ -42,11 +43,12 @@ void ATile3D::BeginPlay()
 void ATile3D::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	//if (m_Type == TileType::Object)
-	//{
-	//	FString tempString = "Object" + GetName();
-	//	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, *tempString);
-	//}
+	/*int count{ 0 };
+	if (m_Type == TileType::NPC)
+	{
+		FString tempString = "NPC" + GetName();
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, *tempString);
+	}*/
 
 }
 

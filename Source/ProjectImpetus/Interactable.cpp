@@ -24,37 +24,45 @@ void AInteractable::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// find tile this object is currently on
-	TArray<AActor*> Tiles;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
-
-	AActor* closestTile = nullptr;
-	for (AActor* tile : Tiles)
-	{
-
-		FVector2D actorPos = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-		FVector2D tilePos = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
-		if (closestTile == nullptr) closestTile = tile;
-		else if (FVector2D::Distance(tilePos, actorPos) <
-			FVector2D::Distance(FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y }, actorPos))
-		{
-			closestTile = tile;
-		}
-	}
-
-	if (Cast<ATile3D>(closestTile) != nullptr)
-	{
-		Cast<ATile3D>(closestTile)->SetType(TileType::Object);
-	}
-
 }
+
+static bool setTile{ false };
 
 // Called every frame
 void AInteractable::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (!setTile)
+	{
 
+		// find tile this object is currently on
+		TArray<AActor*> Tiles;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
+
+		AActor* closestTile = nullptr;
+		for (AActor* tile : Tiles)
+		{
+
+			FVector2D actorPos = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+			FVector2D tilePos = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
+			if (closestTile == nullptr) closestTile = tile;
+			else if (FVector2D::Distance(tilePos, actorPos) <
+				FVector2D::Distance(FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y }, actorPos))
+			{
+				closestTile = tile;
+			}
+		}
+
+		if (Cast<ATile3D>(closestTile) != nullptr)
+		{
+			Cast<ATile3D>(closestTile)->SetType(TileType::Object);
+			if (Cast<ATile3D>(closestTile)->GetType() == TileType::Object)
+			{
+				//setTile = true;
+			}
+		}
+	}
 	
 }
 

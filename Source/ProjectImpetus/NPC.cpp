@@ -20,8 +20,12 @@ void ANPC::BeginPlay()
 
 	// set current action to null
 	m_CurrentAction.actionType = Function::NullAction;
-	
-
+	State newState;
+	FVector2D npcLocation = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+	newState.tile = m_PlanningBrain->FindClosestTile(npcLocation);
+	newState.tile->SetType(TileType::NPC);
+	newState.actionState = ActionState::DoingNothing;
+	m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
 		
 	
 }
@@ -103,8 +107,7 @@ State ANPC::Move(State startState, State endState)
 	{
 		State newState;
 		newState.tile = startState.tile;
-		newState.actionState = endState.actionState;
-		newState.tile->SetType(TileType::NPC);
+		newState.actionState = ActionState::DoingNothing;
 		m_CurrentAction.actionType = Function::NullAction;
 		return newState;
 	}
@@ -126,9 +129,7 @@ State ANPC::Move(State startState, State endState)
 
 		SetActorLocation(FVector{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y, m_HalfHeight });
 
-		newState.actionState = endState.actionState;
-		newState.tile->SetType(TileType::NPC);
-		startState.tile->SetType(TileType::None);
+		newState.actionState = ActionState::DoingNothing;
 		m_CurrentAction.actionType = Function::NullAction;
 		return newState;
 	}
@@ -140,26 +141,20 @@ State ANPC::Attack(State startState, State endState)
 	// while target on endstate is alive
 	if (endState.tile->GetType() == TileType::NPC && m_PlanningBrain->GetFocus() != nullptr)
 	{
-		if (FVector2D::Distance(FVector2D{ startState.tile->GetActorLocation().X, startState.tile->GetActorLocation().Y }, 
-			FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }) <= m_AttackRange)
-		{
-			// if endstate is within range of startstate and the endstate tile type is defined as having an NPC on it, then apply damage to that npc
-			UGameplayStatics::ApplyDamage(m_PlanningBrain->GetFocus(), m_Damage, nullptr, this, NULL);
-		}
-		else {
-			// exit action
-			State newState;
-			newState.tile = startState.tile; // attacking function, do not change tile position 
-			newState.actionState = endState.actionState; // attack has finished, reset directive
-			m_CurrentAction.actionType = Function::NullAction;
-			return newState;
-		}
-		return NULLState();
+		// if endstate is within range of startstate and the endstate tile type is defined as having an NPC on it, then apply damage to that npc
+		UGameplayStatics::ApplyDamage(m_PlanningBrain->GetFocus(), m_Damage, nullptr, this, NULL);
+
+		// exit action
+		State newState;
+		newState.tile = startState.tile; // attacking function, do not change tile position 
+		newState.actionState = ActionState::Attacking; // attack has finished, reset directive
+		m_CurrentAction.actionType = Function::NullAction;
+		return newState;
 	}
 	// exit action
 	State newState;
 	newState.tile = startState.tile;
-	newState.actionState = endState.actionState;
+	newState.actionState = ActionState::DoingNothing;
 	m_CurrentAction.actionType = Function::NullAction;
 	return newState;
 	
@@ -172,6 +167,11 @@ State ANPC::Interact(State startState, State endState)
 		if (Cast<AInteractable>(m_PlanningBrain->GetFocus()) != nullptr)
 		{
 			Cast<AInteractable>(m_PlanningBrain->GetFocus())->Interact(this);
+			State newState;
+			newState.tile = startState.tile;
+			newState.actionState = ActionState::Interacting;
+			m_CurrentAction.actionType = Function::NullAction;
+			return newState;
 		}
 		else
 		{
@@ -187,7 +187,7 @@ State ANPC::Interact(State startState, State endState)
 	// exit action
 	State newState;
 	newState.tile = startState.tile;
-	newState.actionState = endState.actionState;
+	newState.actionState = ActionState::DoingNothing;
 	m_CurrentAction.actionType = Function::NullAction;
 	return newState;
 
@@ -202,24 +202,47 @@ void ANPC::CallAction(Action action)
 	{
 	case Function::MoveFunction:
 		currentState = Move(action.startingState, action.endState); // action is complete when end state is either reached or deemed impossible to get to
+		if (currentState == NULLState())
+		{
+			// do nothing, action is still runnning
+		}
+		else
+		{
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
+		}
 		break;
 	case Function::AttackFunction:
 		currentState = Attack(action.startingState, action.endState); // action is complete when an attack is launched at the focus or deemed impossible to attack or focus changes
+		if (currentState == NULLState())
+		{
+			// do nothing, action is still runnning
+		}
+		else
+		{
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
+		}
 		break;
 	case Function::InteractFunction:
 		currentState = Interact(action.startingState, action.endState);
+		if (currentState == NULLState())
+		{
+			// do nothing, action is still runnning
+		}
+		else
+		{
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
+		}
 	default:
 		// do nothing
 		break;
 	}
 
-	if (currentState == NULLState())
-	{
-		// do nothing, action is still runnning
-	}
-	else
-	{
-		m_PlanningBrain->SetInitialState(currentState); // action has completed and initial state updates
-	}
+	
 }
 

@@ -89,9 +89,18 @@ enum Function
 
 struct Action
 {
+
+
 	State startingState;
 	State endState;
 	Function actionType;
+
+	void operator=(Action other)
+	{
+		startingState = other.startingState;
+		endState = other.endState;
+		actionType = other.actionType;
+	}
 };
 
 // Queue FIFO structure
@@ -100,9 +109,16 @@ struct Action
 struct ActionQueue {
 	TArray<Action> items;
 
-	void InsertItem(Action item)
+	void InsertItem(Action newItem)
 	{
-		items.Insert(item, 0);
+		items.Add(newItem);
+	}
+	void InsertItems(TArray<Action> newItems)
+	{
+		for (int i = 0; i < newItems.Num(); i++)
+		{
+			items.Add(newItems[i]);
+		}
 	}
 	Action GetFirstItem()
 	{
@@ -191,6 +207,8 @@ public:
 	void SetFocus(AActor* focus) { m_Focus = focus; }
 	AActor* GetFocus() { return m_Focus; }
 
+	TArray<Action> CreateAttackActions(int32 numberOfAttacks, State goal, ATile3D* startTile);
+
 	// A* functions
 
 	// only start and end tile are needed, each tile stores connected tiles so that's our search space
@@ -202,7 +220,11 @@ public:
 	// get initial state and set initial state
 
 	State GetInitialState() { return m_InitialState; }
-	void SetInitialState(State newState) { m_InitialState.SetState(newState); }
+	void SetInitialState(ATile3D* newTile, ActionState newActionState) {
+		m_InitialState.actionState = newActionState;
+		m_InitialState.tile = newTile;
+	}
+
 
 
 		

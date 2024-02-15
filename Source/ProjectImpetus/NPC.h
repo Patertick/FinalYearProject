@@ -84,7 +84,7 @@ private:
 
 	float m_WalkSpeed{ 2.0f };
 
-	float m_FollowRange{ 300.0f };
+	float m_FollowRange{ KTILEMAXDISTANCE * 2 };
 
 	// attacking variables
 

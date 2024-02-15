@@ -102,8 +102,7 @@ void UPlanningBrain::BeginPlay()
 		}
 	}
 
-	m_InitialState.actionState = ActionState::DoingNothing;
-	m_InitialState.tile = nullptr;
+	//m_InitialState.actionState = ActionState::DoingNothing;
 	
 }
 
@@ -112,15 +111,7 @@ void UPlanningBrain::BeginPlay()
 void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	if (m_InitialState.tile == nullptr)
-	{
-		FVector2D npcLocation = FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y };
-		m_InitialState.tile = FindClosestTile(npcLocation);
-		m_InitialState.tile->SetType(TileType::NPC);
-	}
-
-	// ...
+	
 	if (m_NPCRef->GetDirective() == Directive::MoveHere)
 	{
 		// empty actions queue
@@ -143,7 +134,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			}
 		}
 
-		if (goalState.tile == nullptr || goalState.tile == m_InitialState.tile)
+		if (goalState.tile == nullptr || goalState.tile == m_InitialState.tile || m_InitialState.tile == nullptr)
 		{
 			return;
 		}
@@ -159,31 +150,21 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			return;
 		}
 
-
-
 		// find actions that follow path
 
-		FVector2D startPointLocation = newPath.locations[0];
-		newPath.locations.RemoveAt(0); // get rid of starting point so we dont waste an action going from start tile to start tile
-
-		for (FVector2D location : newPath.locations)
+		for (int i = 0; i < newPath.locations.Num() - 1; i++)
 		{
 			// for each location
-			for (Action action : m_Actions)
-			{
-				if (action.actionType == Function::MoveFunction)
-				{
-					// find the action that goes from start location to this new location
-					FVector2D startingTileLocation = FVector2D{ action.startingState.tile->GetActorLocation().X, action.startingState.tile->GetActorLocation().Y };
-					FVector2D endTileLocation = FVector2D{ action.endState.tile->GetActorLocation().X, action.endState.tile->GetActorLocation().Y };
-					if (startingTileLocation.Equals(startPointLocation) && endTileLocation.Equals(location))
-					{
-						// add actions to queue
-						if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-					}
-				}
-			}
-			startPointLocation = location; // update start point
+			// create the action that goes from start location to this new location
+			Action newAction;
+			newAction.actionType = Function::MoveFunction;
+			newAction.startingState.actionState = ActionState::DoingNothing;
+			newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+			newAction.endState.actionState = ActionState::DoingNothing;
+			newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+			// add action to queue
+			m_ActionQueue.InsertItem(newAction);
+			
 		}
 
 		// set directive to do nothing
@@ -223,13 +204,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 		if (IsWithinAttackRange(m_InitialState.tile->GetActorLocation(), goalState.tile->GetActorLocation()))
 		{
-			for (Action action : m_Actions)
-			{
-				if (action.startingState == m_InitialState && action.endState == goalState && action.actionType == Function::AttackFunction)
-				{
-					if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-				}
-			}
+			m_ActionQueue.InsertItems(CreateAttackActions(6, goalState, m_InitialState.tile));
 		}
 		else
 		{
@@ -251,7 +226,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 					}
 					else
 					{
-						FVector2D goalLocation = FVector2D{ goalState.tile->GetActorLocation().X, goalState.tile->GetActorLocation().Y };
+						FVector2D goalLocation = FVector2D{ m_InitialState.tile->GetActorLocation().X, m_InitialState.tile->GetActorLocation().Y };
 						FVector2D closestTileLocation = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
 						FVector2D currentTileLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
 						if (FVector2D::Distance(closestTileLocation, goalLocation) > FVector2D::Distance(currentTileLocation, goalLocation))
@@ -274,35 +249,26 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 			// add subsequent move actions to action queue
 
-			FVector2D startPointLocation = newPath.locations[0];
-			newPath.locations.RemoveAt(0);
-
-			for (FVector2D location : newPath.locations)
+			Action newAction;
+			for (int i = 0; i < newPath.locations.Num() - 1; i++)
 			{
-				for (Action action : m_Actions)
-				{
-					if (action.actionType == Function::MoveFunction)
-					{
-						FVector2D startingTileLocation = FVector2D{ action.startingState.tile->GetActorLocation().X, action.startingState.tile->GetActorLocation().Y };
-						FVector2D endTileLocation = FVector2D{ action.endState.tile->GetActorLocation().X, action.endState.tile->GetActorLocation().Y };
-						if (startingTileLocation.Equals(startPointLocation) && endTileLocation.Equals(location))
-						{
-							if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-						}
-					}
-				}
-				startPointLocation = location;
+				// for each location
+				// create the action that goes from start location to this new location
+				newAction.actionType = Function::MoveFunction;
+				newAction.startingState.actionState = ActionState::DoingNothing;
+				newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+				newAction.endState.actionState = ActionState::DoingNothing;
+				newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+				// add action to queue
+				m_ActionQueue.InsertItem(newAction);
+
 			}
 
 			// add attack action to queue
 
-			for (Action action : m_Actions)
-			{
-				if (action.startingState == m_InitialState && action.endState == goalState && action.actionType == Function::AttackFunction)
-				{
-					if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-				}
-			}
+			m_ActionQueue.InsertItems(CreateAttackActions(6, goalState, newAction.endState.tile));
+				
+			
 		}
 
 		// set directive to nothing
@@ -338,13 +304,13 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 		if (IsConnectedTile(m_InitialState.tile, goalState.tile))
 		{
-			for (Action action : m_Actions)
-			{
-				if (action.startingState == m_InitialState && action.endState == goalState && action.actionType == Function::InteractFunction)
-				{
-					if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-				}
-			}
+			Action newAction;
+			newAction.actionType = Function::InteractFunction;
+			newAction.startingState.actionState = ActionState::Interacting;
+			newAction.startingState.tile = m_InitialState.tile;
+			newAction.endState.actionState = ActionState::Interacting;
+			newAction.endState.tile = goalState.tile;
+			m_ActionQueue.InsertItem(newAction);
 		}
 		else
 		{
@@ -362,7 +328,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 					}
 					else
 					{
-						FVector2D goalLocation = FVector2D{ goalState.tile->GetActorLocation().X, goalState.tile->GetActorLocation().Y };
+						FVector2D goalLocation = FVector2D{ m_InitialState.tile->GetActorLocation().X, m_InitialState.tile->GetActorLocation().Y };
 						FVector2D closestTileLocation = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
 						FVector2D currentTileLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
 						if (FVector2D::Distance(closestTileLocation, goalLocation) > FVector2D::Distance(currentTileLocation, goalLocation))
@@ -381,33 +347,27 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 				return;
 			}
 
-			FVector2D startPointLocation = newPath.locations[0];
-			newPath.locations.RemoveAt(0);
+			Action newAction;
 
-			for (FVector2D location : newPath.locations)
+			for (int i = 0; i < newPath.locations.Num() - 1; i++)
 			{
-				for (Action action : m_Actions)
-				{
-					if (action.actionType == Function::MoveFunction)
-					{
-						FVector2D startingTileLocation = FVector2D{ action.startingState.tile->GetActorLocation().X, action.startingState.tile->GetActorLocation().Y };
-						FVector2D endTileLocation = FVector2D{ action.endState.tile->GetActorLocation().X, action.endState.tile->GetActorLocation().Y };
-						if (startingTileLocation.Equals(startPointLocation) && endTileLocation.Equals(location))
-						{
-							if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-						}
-					}
-				}
-				startPointLocation = location;
-			}
+				// for each location
+				// create the action that goes from start location to this new location
+				newAction.actionType = Function::MoveFunction;
+				newAction.startingState.actionState = ActionState::DoingNothing;
+				newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+				newAction.endState.actionState = ActionState::DoingNothing;
+				newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+				// add action to queue
+				m_ActionQueue.InsertItem(newAction);
 
-			for (Action action : m_Actions)
-			{
-				if (action.startingState == m_InitialState && action.endState == goalState && action.actionType == Function::InteractFunction)
-				{
-					if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-				}
 			}
+			newAction.actionType = Function::InteractFunction;
+			newAction.startingState.actionState = ActionState::Interacting;
+			newAction.startingState.tile = newAction.endState.tile; // use last end tile as new starting point for action
+			newAction.endState.actionState = ActionState::Interacting;
+			newAction.endState.tile = goalState.tile;
+			m_ActionQueue.InsertItem(newAction);
 		}
 
 		m_NPCRef->SetDirective(Directive::DoNothing);
@@ -445,7 +405,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 				}
 				else
 				{
-					FVector2D goalLocation = FVector2D{ focusTile->GetActorLocation().X, focusTile->GetActorLocation().Y };
+					FVector2D goalLocation = FVector2D{ m_InitialState.tile->GetActorLocation().X, m_InitialState.tile->GetActorLocation().Y };
 					FVector2D closestTileLocation = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
 					FVector2D currentTileLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
 					if (FVector2D::Distance(closestTileLocation, goalLocation) > FVector2D::Distance(currentTileLocation, goalLocation))
@@ -473,24 +433,19 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 		// add subsequent actions
 
-		FVector2D startPointLocation = newPath.locations[0];
-		newPath.locations.RemoveAt(0);
-
-		for (FVector2D location : newPath.locations)
+		for (int i = 0; i < newPath.locations.Num() - 1; i++)
 		{
-			for (Action action : m_Actions)
-			{
-				if (action.actionType == Function::MoveFunction)
-				{
-					FVector2D startingTileLocation = FVector2D{ action.startingState.tile->GetActorLocation().X, action.startingState.tile->GetActorLocation().Y };
-					FVector2D endTileLocation = FVector2D{ action.endState.tile->GetActorLocation().X, action.endState.tile->GetActorLocation().Y };
-					if (startingTileLocation.Equals(startPointLocation) && endTileLocation.Equals(location))
-					{
-						if (!m_ActionQueue.Contains(action)) m_ActionQueue.InsertItem(action);
-					}
-				}
-			}
-			startPointLocation = location;
+			// for each location
+			// create the action that goes from start location to this new location
+			Action newAction;
+			newAction.actionType = Function::MoveFunction;
+			newAction.startingState.actionState = ActionState::DoingNothing;
+			newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+			newAction.endState.actionState = ActionState::DoingNothing;
+			newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+			// add action to queue
+			m_ActionQueue.InsertItem(newAction);
+
 		}
 
 		// if action queue is non empty
@@ -712,4 +667,20 @@ ATile3D* UPlanningBrain::FindClosestTile(FVector2D location)
 		}
 	}
 	return closestTile;
+}
+
+TArray<Action> UPlanningBrain::CreateAttackActions(int32 numberOfAttacks, State goal, ATile3D* startTile)
+{
+	TArray<Action> attacks;
+	for (int i = 0; i < numberOfAttacks; i++)
+	{
+		Action newAction;
+		newAction.actionType = Function::AttackFunction;
+		newAction.startingState.actionState = ActionState::Attacking;
+		newAction.startingState.tile = startTile;
+		newAction.endState.actionState = ActionState::Attacking;
+		newAction.endState.tile = goal.tile;
+		attacks.Add(newAction);
+	}
+	return attacks;
 }
