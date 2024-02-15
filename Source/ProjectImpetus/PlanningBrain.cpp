@@ -47,7 +47,6 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 	FNode startNode = FNode(0, heuristicCost, startTile, nullptr);
 
 	openList.Add(startNode);
-	m_NodesInUse.Add(startNode);
 
 	while (foundPath == false && openList.Num() != 0) // while there are tiles to be checked and thus path has not been found
 	{
@@ -75,7 +74,6 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 				heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
 				FNode newNode = FNode(closestNode.actualCost + tile->GetWeight(), heuristicCost, endTile, closestNode.associatedTile);
 				closedList.Add(newNode);
-				m_NodesInUse.Add(startNode);
 				foundPath = true;
 				break;
 			}
@@ -87,19 +85,17 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 			if (!InList(openList, newNode.associatedTile) && !InList(closedList, newNode.associatedTile) && newNode.associatedTile->GetType() == TileType::None)
 			{
 				openList.Add(newNode);
-				m_NodesInUse.Add(startNode);
 			}
 		}
 
 		closedList.Add(closestNode);
-		m_NodesInUse.Add(startNode);
 
 		
 	}
 
 	if (InList(closedList, startTile) && InList(closedList, endTile)) // valid path
 	{
-		Path path;
+		Path reversePath;
 		FNode currentNode = FNode(0, 0, nullptr, nullptr);
 		for (FNode node : closedList)
 		{
@@ -113,8 +109,8 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 		{
 			while (currentNode.associatedTile != startTile)
 			{
-				path.tiles.Add(currentNode.associatedTile);
-				path.totalCost += currentNode.totalCostFromGoal;
+				reversePath.locations.Add(FVector2D{ currentNode.associatedTile->GetActorLocation().X, currentNode.associatedTile->GetActorLocation().Y });
+				reversePath.totalCost += currentNode.totalCostFromGoal;
 				for (FNode node : closedList)
 				{
 					if (node.associatedTile == currentNode.parentTile)
@@ -123,13 +119,14 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 					}
 				}
 			}
-			for (ATile3D* tile : path.tiles)
+			Path path;
+			for (int i = reversePath.locations.Num() - 1; i >= 0; i--)
 			{
-				if (Cast<ATile3D>(tile) != nullptr)
-				{
-					Cast<ATile3D>(tile)->m_IsSeen = true;
-				}
+				path.locations.Add(reversePath.locations[i]);
 			}
+			path.totalCost = reversePath.totalCost;
+
+			if (path.totalCost < 0) path.totalCost = 1;
 
 			return path;
 		}
@@ -165,3 +162,8 @@ int UPlanningBrain::FindRemoveIndex(const TArray<FNode>& list, FNode nodeToRemov
 	}
 	return -1;
 }
+
+//FVector2D UPlanningBrain::InterpolatePath(FVector2D startPoint, FVector2D endPoint, FVector2D currentLocation)
+//{
+//
+//}

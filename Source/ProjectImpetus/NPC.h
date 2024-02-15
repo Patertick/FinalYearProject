@@ -99,6 +99,7 @@ protected:
 
 	// action functions
 	void Move(State startState, State endState);
+	void MovePath(Path path);
 	void Attack(State startState, State endState);
 	void Interact(State startState, State endState);
 
@@ -116,9 +117,11 @@ private:
 
 	const float KTILEMAXDISTANCE{ 150.0f }; // max distance between tiles (100x100x100)
 
-
-
 	float m_WalkSpeed{ 2.0f };
+
+	Path m_CurrentPath;
+
+	int32 m_PointOnPath{ 0 };
 
 	float m_FollowRange{ 300.0f };
 
@@ -202,6 +205,8 @@ public:
 	void CallAction(Action action);
 
 	void UpdateMemory(TArray<AActor*> actorsInView) { m_MemoryBrain->UpdateObjectsInMemory(actorsInView); } // call memory brain with new information
+
+	ATile3D* FindClosestTile(FVector2D location);
 
 };
 

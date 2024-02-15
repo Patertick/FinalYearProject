@@ -10,8 +10,14 @@ class ATile3D;
 
 // for use in A* algorithm only start
 struct Path {
-	TArray<ATile3D*> tiles;
+	TArray<FVector2D> locations;
 	float totalCost;
+
+	void operator=(Path other)
+	{
+		locations = other.locations;
+		totalCost = other.totalCost;
+	}
 };
 
 struct FNode {
@@ -38,9 +44,6 @@ struct FNode {
 		associatedTile = tileRef;
 		parentTile = prnt;
 	}
-
-	~FNode() {
-	}
 };
 // for use in A* algorithm only end
 
@@ -60,9 +63,6 @@ protected:
 private:
 	ANPC* m_NPCRef{ nullptr }; // reference to the object this brain works for
 
-	UPROPERTY()
-		TArray<FNode> m_NodesInUse;
-
 	// weights for use in altering A* (from djikstra's to best first search)
 	float m_HeuristicWeight{ 0.5f };
 
@@ -77,5 +77,6 @@ public:
 	Path FindAStarPath(ATile3D* startTile, ATile3D* endTile);
 	bool InList(const TArray<FNode>& list, ATile3D* tile);
 	int FindRemoveIndex(const TArray<FNode>& list, FNode nodeToRemove);
+	FVector2D InterpolatePath(FVector2D startPoint, FVector2D endPoint, FVector2D currentLocation);
 		
 };
