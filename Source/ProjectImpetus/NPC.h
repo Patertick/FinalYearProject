@@ -22,45 +22,10 @@ enum Directive
 	DoNothing   UMETA(DisplayName = "DoNothing"),
 };
 
-UENUM()
-enum Function
-{
-	MoveFunction,
-	AttackFunction,
-	InteractFunction,
-	NullAction,
-};
-
-UENUM()
-enum ActionState
-{
-	Attacking,
-	Interacting,
-	DoingNothing,
-};
 
 
 
-struct State {
-	ATile3D* tile; // tile the NPC is standing on
-	ActionState actionState; // current NPC action state (what is being done)
 
-	bool operator==(State other)
-	{
-		if (tile == other.tile && actionState == other.actionState)
-		{
-			return true;
-		}
-		return false;
-	}
-};
-
-struct Action
-{
-	State startingState;
-	State endState;
-	Function actionType;
-};
 
 
 UCLASS()
@@ -98,10 +63,10 @@ protected:
 	virtual void BeginPlay() override;
 
 	// action functions
-	void Move(State startState, State endState);
-	void MovePath(Path path);
-	void Attack(State startState, State endState);
-	void Interact(State startState, State endState);
+	State Move(State startState, State endState);
+	//bool Move(const Path& path, int32& pointOnPath);
+	State Attack(State startState, State endState);
+	State Interact(State startState, State endState);
 
 private:
 	Directive m_Directive{ Directive::DoNothing };
@@ -119,15 +84,9 @@ private:
 
 	float m_WalkSpeed{ 2.0f };
 
-	Path m_CurrentPath;
-
-	int32 m_PointOnPath{ 0 };
-
 	float m_FollowRange{ 300.0f };
 
 	// attacking variables
-
-	AActor* m_Focus{ nullptr }; // can be an NPC or interactable object, whatever the NPC is currently focusing on
 
 	AActor* m_AttackingEnemy{ nullptr };
 
@@ -138,16 +97,7 @@ private:
 	float m_Health{ 100.0f };
 	float m_MaxHealth{ 100.0f };
 
-	// planning variables
-	TArray<State> m_GoalStates; // possible states that apply to our goal
-
-	TArray<State> m_PossibleStates; // all possible states for this NPC
-
-	TArray<Action> m_Actions; // collection of possible actions
-
-	State m_InitialState; // starting state; when action is called this is set to state after action
-
-	TArray<ATile3D*> m_MapData; // data of every tile on the map
+	// acting
 
 	Action m_CurrentAction; // current action this NPC is performing
 
@@ -170,8 +120,9 @@ public:
 	// player control functions
 	UFUNCTION(BlueprintCallable, Category = PlayerControl)
 		void SetDirective(Directive newDirective) { m_Directive = newDirective; }
+	Directive GetDirective() { return m_Directive; }
 	UFUNCTION(BlueprintCallable, Category = PlayerControl)
-		void SetFocus(AActor* focus) { m_Focus = focus; }
+		void SetFocus(AActor* focus) { m_PlanningBrain->SetFocus(focus); }
 	UFUNCTION(BlueprintCallable, Category = PlayerControl)
 		void MarkAsThreat() { m_Threat = true; }
 	UFUNCTION(BlueprintCallable, Category = PlayerControl)
@@ -192,6 +143,9 @@ public:
 		m_AttackingEnemy = damageInstigator;
 	}
 
+	float GetAttackRange() { return m_AttackRange; }
+	float GetFollowRange() { return m_FollowRange; }
+
 	// robustness functions
 	UFUNCTION(BlueprintCallable, Category = Robust)
 		bool ValidNPC() {
@@ -204,9 +158,24 @@ public:
 
 	void CallAction(Action action);
 
+	void SetAction(Action action) { m_CurrentAction = action; }
+
+	bool IsExecutingAction() {
+		if (m_CurrentAction.actionType != Function::NullAction)
+		{
+			return true;
+		}
+		return false;
+	}
+
 	void UpdateMemory(TArray<AActor*> actorsInView) { m_MemoryBrain->UpdateObjectsInMemory(actorsInView); } // call memory brain with new information
 
-	ATile3D* FindClosestTile(FVector2D location);
+	State NULLState() {
+		State nullState;
+		nullState.tile = nullptr;
+		nullState.actionState = ActionState::DoingNothing;
+		return nullState;
+	}
 
 };
 
