@@ -16,7 +16,7 @@
 UENUM()
 enum Directive
 {
-	MoveHere     UMETA(DisplayName = "MoveHere"),
+	MoveHere	UMETA(DisplayName = "MoveHere"),
 	FollowThis      UMETA(DisplayName = "FollowThis"),
 	AttackThis   UMETA(DisplayName = "AttackThis"),
 	InteractThis   UMETA(DisplayName = "InteractThis"),
