@@ -9,6 +9,7 @@
 #include "SensorBrain.h"
 #include "MemoryBrain.h"
 #include "PlanningBrain.h"
+#include "EmotionBrain.h"
 #include "NPC.generated.h"
 
 
@@ -20,6 +21,22 @@ enum Directive
 	AttackThis   UMETA(DisplayName = "AttackThis"),
 	InteractThis   UMETA(DisplayName = "InteractThis"),
 	DoNothing   UMETA(DisplayName = "DoNothing"),
+};
+
+
+
+UENUM()
+enum GoalAction // for use in planning brain and emotion brain
+{
+	Evade,
+	Chase,
+	Flee,
+	Pursue,
+	Hide,
+	Fight,
+	Interact,
+	NoGoal,
+
 };
 
 
@@ -110,6 +127,8 @@ private:
 
 	UPlanningBrain* m_PlanningBrain{ nullptr };
 
+	UEmotionBrain* m_EmotionBrain{ nullptr };
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -135,6 +154,8 @@ public:
 		void SetMemoryBrain(UMemoryBrain* memory) { m_MemoryBrain = memory; }
 	UFUNCTION(BlueprintCallable, Category = BrainSet)
 		void SetPlanningBrain(UPlanningBrain* planning) { m_PlanningBrain = planning; }
+	UFUNCTION(BlueprintCallable, Category = BrainSet)
+		void SetEmotionBrain(UEmotionBrain* emotion) { m_EmotionBrain = emotion; }
 
 	// damage functions
 	UFUNCTION(BlueprintCallable, Category = Damage)
@@ -149,7 +170,7 @@ public:
 	// robustness functions
 	UFUNCTION(BlueprintCallable, Category = Robust)
 		bool ValidNPC() {
-		if (m_SensorBrain == nullptr || m_MemoryBrain == nullptr || m_PlanningBrain == nullptr) // invalid if any agent is null
+		if (m_SensorBrain == nullptr || m_MemoryBrain == nullptr || m_PlanningBrain == nullptr || m_EmotionBrain == nullptr) // invalid if any agent is null
 		{
 			return false;
 		}

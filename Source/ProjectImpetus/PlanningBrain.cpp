@@ -141,9 +141,6 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 		Path newPath = FindAStarPath(m_InitialState.tile, goalState.tile);
 
-
-		
-
 		if (newPath.totalCost < 0)
 		{
 			// try again
@@ -250,6 +247,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			// add subsequent move actions to action queue
 
 			Action newAction;
+			newAction.endState.tile = nullptr;
 			for (int i = 0; i < newPath.locations.Num() - 1; i++)
 			{
 				// for each location
@@ -265,7 +263,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			}
 
 			// add attack action to queue
-
+			if (newAction.endState.tile == nullptr) return;
 			m_ActionQueue.InsertItems(CreateAttackActions(6, goalState, newAction.endState.tile));
 				
 			
@@ -314,9 +312,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		}
 		else
 		{
-
 			ATile3D* closestTile = nullptr;
-
 			for (ATile3D* tile : m_MapData)
 			{
 				// instead of finding tiles in range, find all tiles connected to goal tile
@@ -374,14 +370,6 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	}
 	else if (m_NPCRef->GetDirective() == Directive::FollowThis)
 	{
-		//if (!m_NPCRef->IsExecutingAction())
-		//{
-		//	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Black, TEXT("Follow"));
-		//	// don't calculate path if action is being executed, waste of processing
-		//	return;
-		//}
-
-
 		// empty action queue
 
 		m_ActionQueue.Empty();
