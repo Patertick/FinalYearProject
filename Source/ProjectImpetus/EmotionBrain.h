@@ -70,11 +70,13 @@ private:
 
 	TMap<Stimuli, EmotionalResponse> m_StimuliEmotionDictionary; // generated procedurally
 
-	int32 m_SearchThreshold{ 5000 }; // number of searches to do when generating a dictionary
+	TMap<Stimuli, EmotionalResponse> m_ExpectedStimuliEmotionDictionary;
+
+	int32 m_SearchThreshold{ 20000 }; // number of searches to do when generating a dictionary
 
 	const int32 KNUMBEROFEMOTIONS = 8;
 
-	const int32 KNUMBEROFACTIONS = 8;
+	const int32 KNUMBEROFACTIONS = 9;
 
 public:	
 	// Called every frame
@@ -90,6 +92,9 @@ public:
 	Emotion SelectRandomEmotion();
 	GoalAction SelectRandomAction();
 	float FitnessFunction(const TMap<Stimuli, EmotionalResponse>& value);
+
+	bool SimilarAction(GoalAction selfAction, GoalAction otherAction);
+	bool SimilarEmotion(Emotion selfEmotion, Emotion otherEmotion);
 
 	UFUNCTION(BlueprintCallable, Category = Getter)
 		FString GetStimuliResponse(Stimuli stimuli);

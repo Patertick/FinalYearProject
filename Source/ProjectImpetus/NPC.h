@@ -35,6 +35,7 @@ enum GoalAction // for use in planning brain and emotion brain
 	Hide,
 	Fight,
 	Interact,
+	Search,
 	NoGoal,
 
 };

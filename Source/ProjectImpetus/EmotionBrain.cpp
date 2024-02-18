@@ -19,130 +19,114 @@ void UEmotionBrain::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
+	// create expected dictionary
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::KnownEntitySeen);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::KnownEntityHeard);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::UnknownEntitySeen);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::UnknownEntityHeard);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::Damaged);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::CloseToDeath);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::Dismembered);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::Alone);
+	m_ExpectedStimuliEmotionDictionary.Add(Stimuli::InAGroup);
 
-	int32 overallUniqueActions{ 0 };
-	int32 overallUniqueEmotions{ 0 };
-	float overallWeightDifference{ 0.0f };
-	int32 numberOfRuns{ 0 };
-	for (int i = 0; i < 1; i++)
+	EmotionalResponse expectedResponse;
+	expectedResponse.action = GoalAction::NoGoal;
+	expectedResponse.emotion = Emotion::NoEmotion;
+	expectedResponse.weight = 0.1f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::KnownEntitySeen] = expectedResponse;
+	expectedResponse.action = GoalAction::NoGoal;
+	expectedResponse.emotion = Emotion::NoEmotion;
+	expectedResponse.weight = 0.1f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::KnownEntityHeard] = expectedResponse;
+	expectedResponse.action = GoalAction::Interact;
+	expectedResponse.emotion = Emotion::Scared;
+	expectedResponse.weight = 0.4f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::UnknownEntitySeen] = expectedResponse;
+	expectedResponse.action = GoalAction::Search;
+	expectedResponse.emotion = Emotion::Scared;
+	expectedResponse.weight = 0.2f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::UnknownEntityHeard] = expectedResponse;
+	expectedResponse.action = GoalAction::Fight;
+	expectedResponse.emotion = Emotion::Angry;
+	expectedResponse.weight = 0.6f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::Damaged] = expectedResponse;
+	expectedResponse.action = GoalAction::Flee;
+	expectedResponse.emotion = Emotion::Scared;
+	expectedResponse.weight = 0.85f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::CloseToDeath] = expectedResponse;
+	expectedResponse.action = GoalAction::Flee;
+	expectedResponse.emotion = Emotion::Scared;
+	expectedResponse.weight = 0.95f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::Dismembered] = expectedResponse;
+	expectedResponse.action = GoalAction::Search;
+	expectedResponse.emotion = Emotion::Scared;
+	expectedResponse.weight = 0.55f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::Alone] = expectedResponse;
+	expectedResponse.action = GoalAction::NoGoal;
+	expectedResponse.emotion = Emotion::Relaxed;
+	expectedResponse.weight = 0.50f;
+	m_ExpectedStimuliEmotionDictionary[Stimuli::InAGroup] = expectedResponse;
+
+
+	// Generate Stimuli Emotional response dictionary using search based procedural generation
+
+	int32 count{ 0 };
+
+	TMap<Stimuli, EmotionalResponse> generatedDict;
+	// create temporary response, null response for detecting invalid responses generated
+	EmotionalResponse nullResponse;
+	nullResponse.action = GoalAction::NoGoal;
+	nullResponse.emotion = Emotion::NoEmotion;
+	nullResponse.weight = -1.0f;
+
+	generatedDict.Add(Stimuli::KnownEntitySeen);
+	generatedDict.Add(Stimuli::KnownEntityHeard);
+	generatedDict.Add(Stimuli::UnknownEntitySeen);
+	generatedDict.Add(Stimuli::UnknownEntityHeard);
+	generatedDict.Add(Stimuli::Damaged);
+	generatedDict.Add(Stimuli::CloseToDeath);
+	generatedDict.Add(Stimuli::Dismembered);
+	generatedDict.Add(Stimuli::Alone);
+	generatedDict.Add(Stimuli::InAGroup);
+	generatedDict[Stimuli::KnownEntitySeen] = nullResponse;
+	generatedDict[Stimuli::KnownEntityHeard] = nullResponse;
+	generatedDict[Stimuli::UnknownEntitySeen] = nullResponse;
+	generatedDict[Stimuli::UnknownEntityHeard] = nullResponse;
+	generatedDict[Stimuli::Damaged] = nullResponse;
+	generatedDict[Stimuli::CloseToDeath] = nullResponse;
+	generatedDict[Stimuli::Dismembered] = nullResponse;
+	generatedDict[Stimuli::Alone] = nullResponse;
+	generatedDict[Stimuli::InAGroup] = nullResponse;
+	m_StimuliEmotionDictionary = generatedDict;
+
+	while (count <= m_SearchThreshold) // is the number of searches required reached?
 	{
-		numberOfRuns++;
-		// Generate Stimuli Emotional response dictionary using search based procedural generation
-
-		int32 count{ 0 };
-
-		TMap<Stimuli, EmotionalResponse> generatedDict;
-		// create temporary response, null response for detecting invalid responses generated
-		EmotionalResponse nullResponse;
-		nullResponse.action = GoalAction::NoGoal;
-		nullResponse.emotion = Emotion::NoEmotion;
-		nullResponse.weight = -1.0f;
-
-		generatedDict.Add(Stimuli::KnownEntitySeen);
-		generatedDict.Add(Stimuli::KnownEntityHeard);
-		generatedDict.Add(Stimuli::UnknownEntitySeen);
-		generatedDict.Add(Stimuli::UnknownEntityHeard);
-		generatedDict.Add(Stimuli::Damaged);
-		generatedDict.Add(Stimuli::CloseToDeath);
-		generatedDict.Add(Stimuli::Dismembered);
-		generatedDict.Add(Stimuli::Alone);
-		generatedDict.Add(Stimuli::InAGroup);
-		generatedDict[Stimuli::KnownEntitySeen] = nullResponse;
-		generatedDict[Stimuli::KnownEntityHeard] = nullResponse;
-		generatedDict[Stimuli::UnknownEntitySeen] = nullResponse;
-		generatedDict[Stimuli::UnknownEntityHeard] = nullResponse;
-		generatedDict[Stimuli::Damaged] = nullResponse;
-		generatedDict[Stimuli::CloseToDeath] = nullResponse;
-		generatedDict[Stimuli::Dismembered] = nullResponse;
-		generatedDict[Stimuli::Alone] = nullResponse;
-		generatedDict[Stimuli::InAGroup] = nullResponse;
-		m_StimuliEmotionDictionary = generatedDict;
-
-		while (count <= m_SearchThreshold) // is the number of searches required reached?
+		EmotionalResponse generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::KnownEntitySeen] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::KnownEntityHeard] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::UnknownEntitySeen] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::UnknownEntityHeard] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::Damaged] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::CloseToDeath] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::Dismembered] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::Alone] = generatedResponse;
+		generatedResponse = GenerateResponse();
+		generatedDict[Stimuli::InAGroup] = generatedResponse;
+		if (FitnessFunction(generatedDict) > FitnessFunction(m_StimuliEmotionDictionary))
 		{
-			EmotionalResponse generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::KnownEntitySeen] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::KnownEntityHeard] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::UnknownEntitySeen] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::UnknownEntityHeard] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::Damaged] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::CloseToDeath] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::Dismembered] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::Alone] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::InAGroup] = generatedResponse;
-			if (FitnessFunction(generatedDict) > FitnessFunction(m_StimuliEmotionDictionary))
-			{
-				m_StimuliEmotionDictionary = generatedDict;
-			}
-
-			count++;
-		}
-		float averageWeightDifference{ 0.0f };
-		count = 0;
-		int32 emotionCount = 0;
-		for (const TPair<Stimuli, EmotionalResponse>& entry : m_StimuliEmotionDictionary)
-		{
-
-			bool uniqueActionResponse{ true };
-			bool uniqueEmotionResponse{ true };
-			for (const TPair<Stimuli, EmotionalResponse>& other : m_StimuliEmotionDictionary)
-			{
-				if (entry.Key != other.Key)
-				{
-					// check for unique responses
-					if (entry.Value.action == other.Value.action)
-					{
-						uniqueActionResponse = false;
-					}
-					if (entry.Value.emotion == other.Value.emotion)
-					{
-						uniqueEmotionResponse = false;
-					}
-
-					// evaluate average weight difference
-					averageWeightDifference += abs(entry.Value.weight - other.Value.weight);
-
-				}
-			}
-
-			if (uniqueActionResponse)
-			{
-				count++;
-			}
-			if (uniqueEmotionResponse)
-			{
-				emotionCount++;
-			}
-
-			averageWeightDifference = averageWeightDifference / static_cast<float>(m_StimuliEmotionDictionary.Num());
+			m_StimuliEmotionDictionary = generatedDict;
 		}
 
-
-
-		overallUniqueActions += count;
-		overallUniqueEmotions += emotionCount;
-		overallWeightDifference += averageWeightDifference;
+		count++;
 	}
-
-	overallUniqueActions = overallUniqueActions / 100;
-	overallUniqueEmotions = overallUniqueEmotions / 100;
-	overallWeightDifference = overallWeightDifference / 100;
-
-	/*FString tempString = FString::SanitizeFloat(overallWeightDifference) + " Average weight difference";
-	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);
-	tempString = FString::FromInt(overallUniqueActions) + " number of unique actions";
-	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);
-	tempString = FString::FromInt(overallUniqueEmotions) + " number of unique emotions";
-	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);*/
 
 }
 
@@ -222,6 +206,8 @@ GoalAction UEmotionBrain::SelectRandomAction()
 	case 6:
 		return GoalAction::Interact;
 	case 7:
+		return GoalAction::Search;
+	case 8:
 	default:
 		return GoalAction::NoGoal;
 	}
@@ -236,39 +222,141 @@ float UEmotionBrain::FitnessFunction(const TMap<Stimuli, EmotionalResponse>& val
 	// since each key value can increment the total fitness two potential times, total fitness is number of items * 2
 	float maxFitness{ 0.0f }; // so we can confine fitness to between 0.0 and 1.0
 
-	// for every item
+	// for every item stimuli
 	for (const TPair<Stimuli, EmotionalResponse>& entry : value)
 	{
-		float averageWeightDifference{ 0.0f };
-		bool uniqueResponse{ true };
-		for (const TPair<Stimuli, EmotionalResponse>& other : value)
-		{
-			if (entry.Key != other.Key)
-			{
-				// check for unique responses
-				if (entry.Value.action == other.Value.action || entry.Value.emotion == other.Value.emotion)
-				{
-					uniqueResponse = false;
-				}
+		float weightDifference = entry.Value.weight - m_ExpectedStimuliEmotionDictionary[entry.Key].weight;
+		weightDifference = sqrtf(weightDifference * weightDifference);
+		totalFitness += 1.0 - weightDifference;
 
-				// evaluate average weight difference
-				averageWeightDifference += abs(entry.Value.weight - other.Value.weight);
+		maxFitness++;
 
-			}
-		}
-		
-		if (uniqueResponse)
+		if (SimilarAction(entry.Value.action, m_ExpectedStimuliEmotionDictionary[entry.Key].action))
 		{
 			totalFitness++;
 		}
+
 		maxFitness++;
-		averageWeightDifference = averageWeightDifference / static_cast<float>(value.Num());
-		totalFitness += averageWeightDifference;
+
+		if (SimilarEmotion(entry.Value.emotion, m_ExpectedStimuliEmotionDictionary[entry.Key].emotion))
+		{
+			totalFitness++;
+		}
+
 		maxFitness++;
+
+		/*if (entry.Value.action == m_ExpectedStimuliEmotionDictionary[entry.Key].action)
+		{
+			totalFitness--;
+		}
+		if (entry.Value.emotion == m_ExpectedStimuliEmotionDictionary[entry.Key].emotion)
+		{
+			totalFitness--;
+		}*/
+
+
 	}
 
 	return totalFitness / maxFitness;
 
+}
+
+bool UEmotionBrain::SimilarAction(GoalAction selfAction, GoalAction otherAction)
+{
+	TArray<GoalAction> similarActions;
+	switch (otherAction)
+	{
+	case GoalAction::Evade:
+		// self preservation actions
+		similarActions.Add(GoalAction::Flee);
+		similarActions.Add(GoalAction::Hide);
+		break;
+	case GoalAction::Chase:
+		// aggressive actions
+		similarActions.Add(GoalAction::Pursue);
+		similarActions.Add(GoalAction::Fight);
+		break;
+	case GoalAction::Flee:
+		similarActions.Add(GoalAction::Evade);
+		similarActions.Add(GoalAction::Hide);
+		break;
+	case GoalAction::Pursue:
+		similarActions.Add(GoalAction::Chase);
+		similarActions.Add(GoalAction::Fight);
+		break;
+	case GoalAction::Hide:
+		similarActions.Add(GoalAction::Flee);
+		similarActions.Add(GoalAction::Evade);
+		break;
+	case GoalAction::Fight:
+		similarActions.Add(GoalAction::Pursue);
+		similarActions.Add(GoalAction::Chase);
+		break;
+	case GoalAction::Interact:
+		// passive actions
+		similarActions.Add(GoalAction::Search);
+		similarActions.Add(GoalAction::NoGoal);
+		break;
+	case GoalAction::Search:
+		similarActions.Add(GoalAction::Interact);
+		similarActions.Add(GoalAction::NoGoal);
+		break;
+	case GoalAction::NoGoal:
+		similarActions.Add(GoalAction::Search);
+		similarActions.Add(GoalAction::Interact);
+	default:
+		break;
+	}
+
+	if (similarActions.Contains(selfAction)) return true;
+	return false;
+}
+
+bool UEmotionBrain::SimilarEmotion(Emotion selfEmotion, Emotion otherEmotion)
+{
+	TArray<Emotion> similarActions;
+	switch (otherEmotion)
+	{
+	case Emotion::Scared:
+		// negative emotions
+		similarActions.Add(Emotion::Disgusted);
+		similarActions.Add(Emotion::Saddened);
+		break;
+	case Emotion::Angry:
+		similarActions.Add(Emotion::Disgusted);
+		similarActions.Add(Emotion::NoEmotion);
+		break;
+	case Emotion::Disgusted:
+		similarActions.Add(Emotion::Angry);
+		similarActions.Add(Emotion::Scared);
+		break;
+	case Emotion::Relaxed:
+		// positive emotions
+		similarActions.Add(Emotion::Joyful);
+		similarActions.Add(Emotion::Bored);
+		similarActions.Add(Emotion::NoEmotion);
+		break;
+	case Emotion::Joyful:
+		similarActions.Add(Emotion::Relaxed);
+		similarActions.Add(Emotion::Bored);
+		break;
+	case Emotion::Saddened:
+		similarActions.Add(Emotion::Disgusted);
+		similarActions.Add(Emotion::Scared);
+		break;
+	case Emotion::Bored:
+		similarActions.Add(Emotion::NoEmotion);
+		similarActions.Add(Emotion::Relaxed);
+		break;
+	case Emotion::NoEmotion:
+	default:
+		similarActions.Add(Emotion::Bored);
+		similarActions.Add(Emotion::Relaxed);
+		break;
+	}
+
+	if (similarActions.Contains(selfEmotion)) return true;
+	return false;
 }
 
 FString UEmotionBrain::GetStimuliResponse(Stimuli stimuli)
@@ -332,6 +420,9 @@ FString UEmotionBrain::GetStimuliResponse(Stimuli stimuli)
 		break;
 	case GoalAction::Interact:
 		information = information + "Action: Interacting, ";
+		break;
+	case GoalAction::Search:
+		information = information + "Action: Searching, ";
 		break;
 	case GoalAction::NoGoal:
 	default:
