@@ -25,7 +25,7 @@ void UEmotionBrain::BeginPlay()
 	int32 overallUniqueEmotions{ 0 };
 	float overallWeightDifference{ 0.0f };
 	int32 numberOfRuns{ 0 };
-	for (int i = 0; i < 100; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		numberOfRuns++;
 		// Generate Stimuli Emotional response dictionary using search based procedural generation
@@ -137,12 +137,12 @@ void UEmotionBrain::BeginPlay()
 	overallUniqueEmotions = overallUniqueEmotions / 100;
 	overallWeightDifference = overallWeightDifference / 100;
 
-	FString tempString = FString::SanitizeFloat(overallWeightDifference) + " Average weight difference";
+	/*FString tempString = FString::SanitizeFloat(overallWeightDifference) + " Average weight difference";
 	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);
 	tempString = FString::FromInt(overallUniqueActions) + " number of unique actions";
 	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);
 	tempString = FString::FromInt(overallUniqueEmotions) + " number of unique emotions";
-	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);
+	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);*/
 
 }
 
