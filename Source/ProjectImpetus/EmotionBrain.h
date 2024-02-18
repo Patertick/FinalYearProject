@@ -90,6 +90,8 @@ public:
 	Emotion SelectRandomEmotion();
 	GoalAction SelectRandomAction();
 	float FitnessFunction(const TMap<Stimuli, EmotionalResponse>& value);
+	float ActionToEmotionFitness(GoalAction action, Emotion emotion);
+	float EmotionToWeightFitness(Emotion emotion, float weight);
 
 	UFUNCTION(BlueprintCallable, Category = Getter)
 		FString GetStimuliResponse(Stimuli stimuli);
