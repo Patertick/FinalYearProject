@@ -22,31 +22,18 @@ enum Emotion
 UENUM()
 enum Stimuli
 {
-	KnownEntitySeen		UMETA(DisplayName = "Known Entity Seen"),
-	KnownEntityHeard	UMETA(DisplayName = "Known Entity Heard"),
-	UnknownEntitySeen	UMETA(DisplayName = "Unknown Entity Seen"),
-	UnknownEntityHeard	UMETA(DisplayName = "Unknown Entity Heard"),
-	Damaged				UMETA(DisplayName = "Damaged"),
-	CloseToDeath		UMETA(DisplayName = "Close To Death"),
-	Dismembered			UMETA(DisplayName = "Dismembered"),
-	Alone				UMETA(DisplayName = "Alone"),
-	InAGroup			UMETA(DisplayName = "In A Group"),
-};
-
-enum GoalAction;
-
-
-struct EmotionalResponse {
-	Emotion emotion; // emotion enum (fear, anger etc.)
-	float weight; // weight of emotional response
-	GoalAction action; // action to be carried out if emotional response overrides current action (E.G Run or Attack)
-
-	void operator=(EmotionalResponse other)
-	{
-		emotion = other.emotion;
-		weight = other.weight;
-		action = other.action;
-	}
+	KnownFriendlyEntitySeen		UMETA(DisplayName = "Known Friendly Entity Seen"),
+	KnownFriendlyEntityHeard	UMETA(DisplayName = "Known Friendly Entity Heard"),
+	KnownAggressiveEntitySeen   UMETA(DisplayName = "Known Aggressive Entity Seen"),
+	KnownAggressiveEntityHeard  UMETA(DisplayName = "Known Aggressive Entity Heard"),
+	UnknownEntitySeen			UMETA(DisplayName = "Unknown Entity Seen"),
+	UnknownEntityHeard			UMETA(DisplayName = "Unknown Entity Heard"),
+	DeadEntitySeen				UMETA(DisplayName = "Dead Entity Seen"),
+	Damaged						UMETA(DisplayName = "Damaged"),
+	CloseToDeath				UMETA(DisplayName = "Close To Death"),
+	Alone						UMETA(DisplayName = "Alone"),
+	InAGroup					UMETA(DisplayName = "In A Group"),
+	NoStimuli					UMETA(DisplayName = "No Stimuli"),
 };
 
 
@@ -68,13 +55,11 @@ private:
 
 	// procedural variables
 
-	TMap<Stimuli, EmotionalResponse> m_StimuliEmotionDictionary; // generated procedurally
+	TMap<Stimuli, Emotion> m_StimuliEmotionDictionary; // generated procedurally
 
 	int32 m_SearchThreshold{ 5000 }; // number of searches to do when generating a dictionary
 
 	const int32 KNUMBEROFEMOTIONS = 8;
-
-	const int32 KNUMBEROFACTIONS = 8;
 
 public:	
 	// Called every frame
@@ -86,10 +71,8 @@ public:
 
 	// procedural functions
 
-	EmotionalResponse GenerateResponse();
 	Emotion SelectRandomEmotion();
-	GoalAction SelectRandomAction();
-	float FitnessFunction(const TMap<Stimuli, EmotionalResponse>& value);
+	float FitnessFunction(const TMap<Stimuli, Emotion>& value);
 
 	UFUNCTION(BlueprintCallable, Category = Getter)
 		FString GetStimuliResponse(Stimuli stimuli);

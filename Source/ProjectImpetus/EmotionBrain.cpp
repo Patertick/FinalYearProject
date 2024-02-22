@@ -19,131 +19,61 @@ void UEmotionBrain::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
+	// Generate Stimuli Emotional response dictionary using search based procedural generation
 
-	int32 overallUniqueActions{ 0 };
-	int32 overallUniqueEmotions{ 0 };
-	float overallWeightDifference{ 0.0f };
-	int32 numberOfRuns{ 0 };
-	for (int i = 0; i < 1; i++)
+	int32 count{ 0 };
+
+	TMap<Stimuli, Emotion> generatedDict;
+
+
+	generatedDict.Add(Stimuli::KnownFriendlyEntitySeen);
+	generatedDict.Add(Stimuli::KnownFriendlyEntityHeard);
+	generatedDict.Add(Stimuli::KnownAggressiveEntitySeen);
+	generatedDict.Add(Stimuli::KnownAggressiveEntityHeard);
+	generatedDict.Add(Stimuli::UnknownEntitySeen);
+	generatedDict.Add(Stimuli::UnknownEntityHeard);
+	generatedDict.Add(Stimuli::DeadEntitySeen);
+	generatedDict.Add(Stimuli::Damaged);
+	generatedDict.Add(Stimuli::CloseToDeath);
+	generatedDict.Add(Stimuli::Alone);
+	generatedDict.Add(Stimuli::InAGroup);
+	generatedDict.Add(Stimuli::NoStimuli);
+	generatedDict[Stimuli::KnownFriendlyEntitySeen] = Emotion::NoEmotion;
+	generatedDict[Stimuli::KnownFriendlyEntityHeard] = Emotion::NoEmotion;
+	generatedDict[Stimuli::KnownAggressiveEntitySeen] = Emotion::NoEmotion;
+	generatedDict[Stimuli::KnownAggressiveEntityHeard] = Emotion::NoEmotion;
+	generatedDict[Stimuli::UnknownEntitySeen] = Emotion::NoEmotion;
+	generatedDict[Stimuli::UnknownEntityHeard] = Emotion::NoEmotion;
+	generatedDict[Stimuli::DeadEntitySeen] = Emotion::NoEmotion;
+	generatedDict[Stimuli::Damaged] = Emotion::NoEmotion;
+	generatedDict[Stimuli::CloseToDeath] = Emotion::NoEmotion;
+	generatedDict[Stimuli::Alone] = Emotion::NoEmotion;
+	generatedDict[Stimuli::InAGroup] = Emotion::NoEmotion;
+	generatedDict[Stimuli::NoStimuli] = Emotion::NoEmotion;
+	m_StimuliEmotionDictionary = generatedDict;
+
+	while (count <= m_SearchThreshold) // is the number of searches required reached?
 	{
-		numberOfRuns++;
-		// Generate Stimuli Emotional response dictionary using search based procedural generation
-
-		int32 count{ 0 };
-
-		TMap<Stimuli, EmotionalResponse> generatedDict;
-		// create temporary response, null response for detecting invalid responses generated
-		EmotionalResponse nullResponse;
-		nullResponse.action = GoalAction::NoGoal;
-		nullResponse.emotion = Emotion::NoEmotion;
-		nullResponse.weight = -1.0f;
-
-		generatedDict.Add(Stimuli::KnownEntitySeen);
-		generatedDict.Add(Stimuli::KnownEntityHeard);
-		generatedDict.Add(Stimuli::UnknownEntitySeen);
-		generatedDict.Add(Stimuli::UnknownEntityHeard);
-		generatedDict.Add(Stimuli::Damaged);
-		generatedDict.Add(Stimuli::CloseToDeath);
-		generatedDict.Add(Stimuli::Dismembered);
-		generatedDict.Add(Stimuli::Alone);
-		generatedDict.Add(Stimuli::InAGroup);
-		generatedDict[Stimuli::KnownEntitySeen] = nullResponse;
-		generatedDict[Stimuli::KnownEntityHeard] = nullResponse;
-		generatedDict[Stimuli::UnknownEntitySeen] = nullResponse;
-		generatedDict[Stimuli::UnknownEntityHeard] = nullResponse;
-		generatedDict[Stimuli::Damaged] = nullResponse;
-		generatedDict[Stimuli::CloseToDeath] = nullResponse;
-		generatedDict[Stimuli::Dismembered] = nullResponse;
-		generatedDict[Stimuli::Alone] = nullResponse;
-		generatedDict[Stimuli::InAGroup] = nullResponse;
-		m_StimuliEmotionDictionary = generatedDict;
-
-		while (count <= m_SearchThreshold) // is the number of searches required reached?
+		generatedDict[Stimuli::KnownFriendlyEntitySeen] = SelectRandomEmotion();
+		generatedDict[Stimuli::KnownFriendlyEntityHeard] = SelectRandomEmotion();
+		generatedDict[Stimuli::KnownAggressiveEntitySeen] = SelectRandomEmotion();
+		generatedDict[Stimuli::KnownAggressiveEntityHeard] = SelectRandomEmotion();
+		generatedDict[Stimuli::UnknownEntitySeen] = SelectRandomEmotion();
+		generatedDict[Stimuli::UnknownEntityHeard] = SelectRandomEmotion();
+		generatedDict[Stimuli::DeadEntitySeen] = SelectRandomEmotion();
+		generatedDict[Stimuli::Damaged] = SelectRandomEmotion();
+		generatedDict[Stimuli::CloseToDeath] = SelectRandomEmotion();
+		generatedDict[Stimuli::Alone] = SelectRandomEmotion();
+		generatedDict[Stimuli::InAGroup] = SelectRandomEmotion();
+		generatedDict[Stimuli::NoStimuli] = SelectRandomEmotion();
+		if (FitnessFunction(generatedDict) > FitnessFunction(m_StimuliEmotionDictionary))
 		{
-			EmotionalResponse generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::KnownEntitySeen] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::KnownEntityHeard] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::UnknownEntitySeen] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::UnknownEntityHeard] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::Damaged] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::CloseToDeath] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::Dismembered] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::Alone] = generatedResponse;
-			generatedResponse = GenerateResponse();
-			generatedDict[Stimuli::InAGroup] = generatedResponse;
-			if (FitnessFunction(generatedDict) > FitnessFunction(m_StimuliEmotionDictionary))
-			{
-				m_StimuliEmotionDictionary = generatedDict;
-			}
-
-			count++;
-		}
-		float averageWeightDifference{ 0.0f };
-		count = 0;
-		int32 emotionCount = 0;
-		for (const TPair<Stimuli, EmotionalResponse>& entry : m_StimuliEmotionDictionary)
-		{
-
-			bool uniqueActionResponse{ true };
-			bool uniqueEmotionResponse{ true };
-			for (const TPair<Stimuli, EmotionalResponse>& other : m_StimuliEmotionDictionary)
-			{
-				if (entry.Key != other.Key)
-				{
-					// check for unique responses
-					if (entry.Value.action == other.Value.action)
-					{
-						uniqueActionResponse = false;
-					}
-					if (entry.Value.emotion == other.Value.emotion)
-					{
-						uniqueEmotionResponse = false;
-					}
-
-					// evaluate average weight difference
-					averageWeightDifference += abs(entry.Value.weight - other.Value.weight);
-
-				}
-			}
-
-			if (uniqueActionResponse)
-			{
-				count++;
-			}
-			if (uniqueEmotionResponse)
-			{
-				emotionCount++;
-			}
-
-			averageWeightDifference = averageWeightDifference / static_cast<float>(m_StimuliEmotionDictionary.Num());
+			m_StimuliEmotionDictionary = generatedDict;
 		}
 
-
-
-		overallUniqueActions += count;
-		overallUniqueEmotions += emotionCount;
-		overallWeightDifference += averageWeightDifference;
+		count++;
 	}
-
-	overallUniqueActions = overallUniqueActions / 100;
-	overallUniqueEmotions = overallUniqueEmotions / 100;
-	overallWeightDifference = overallWeightDifference / 100;
-
-	/*FString tempString = FString::SanitizeFloat(overallWeightDifference) + " Average weight difference";
-	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);
-	tempString = FString::FromInt(overallUniqueActions) + " number of unique actions";
-	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);
-	tempString = FString::FromInt(overallUniqueEmotions) + " number of unique emotions";
-	GEngine->AddOnScreenDebugMessage(-1, 1000.0f, FColor::Red, *tempString);*/
-
+	
 }
 
 
@@ -153,26 +83,6 @@ void UEmotionBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// ...
-}
-
-EmotionalResponse UEmotionBrain::GenerateResponse()
-{
-	EmotionalResponse generatedResponse;
-	bool validValueGenerated{ false };
-	do {
-		generatedResponse.action = SelectRandomAction();
-		generatedResponse.emotion = SelectRandomEmotion();
-		generatedResponse.weight = FMath::FRandRange(0.0f, 1.0f); // 0.0f will never override. 1.0f will always override
-
-		// check if valid
-		// note, nothing is a valid emotional response, it was set in the null response as a template rather than a restriction
-		if (generatedResponse.weight <= 1.0f && generatedResponse.weight >= 0.0f)
-		{
-			validValueGenerated = true;
-		}
-	} while (validValueGenerated == false); // make sure generated value is valid
-
-	return generatedResponse;
 }
 
 Emotion UEmotionBrain::SelectRandomEmotion()
@@ -201,33 +111,7 @@ Emotion UEmotionBrain::SelectRandomEmotion()
 	}
 }
 
-GoalAction UEmotionBrain::SelectRandomAction()
-{
-	int32 randomNum;
-	randomNum = FMath::RandRange(0, KNUMBEROFACTIONS - 1);
-	switch (randomNum)
-	{
-	case 0:
-		return GoalAction::Evade;
-	case 1:
-		return GoalAction::Chase;
-	case 2:
-		return GoalAction::Flee;
-	case 3:
-		return GoalAction::Pursue;
-	case 4:
-		return GoalAction::Hide;
-	case 5:
-		return GoalAction::Fight;
-	case 6:
-		return GoalAction::Interact;
-	case 7:
-	default:
-		return GoalAction::NoGoal;
-	}
-}
-
-float UEmotionBrain::FitnessFunction(const TMap<Stimuli, EmotionalResponse>& value)
+float UEmotionBrain::FitnessFunction(const TMap<Stimuli, Emotion>& value)
 {
 	// for each entry, check if the emotional response is reasonable
 	// add to a total fitness value for evaluation properties
@@ -237,33 +121,25 @@ float UEmotionBrain::FitnessFunction(const TMap<Stimuli, EmotionalResponse>& val
 	float maxFitness{ 0.0f }; // so we can confine fitness to between 0.0 and 1.0
 
 	// for every item
-	for (const TPair<Stimuli, EmotionalResponse>& entry : value)
+	for (const TPair<Stimuli, Emotion>& entry : value)
 	{
-		float averageWeightDifference{ 0.0f };
-		bool uniqueResponse{ true };
-		for (const TPair<Stimuli, EmotionalResponse>& other : value)
+		// higher fitness for unique entries, completely random dictionary otherwise
+		bool unique{ true };
+		for (const TPair<Stimuli, Emotion>& other : value)
 		{
 			if (entry.Key != other.Key)
 			{
-				// check for unique responses
-				if (entry.Value.action == other.Value.action || entry.Value.emotion == other.Value.emotion)
+				if (entry.Value == other.Value)
 				{
-					uniqueResponse = false;
+					unique = false;
 				}
-
-				// evaluate average weight difference
-				averageWeightDifference += abs(entry.Value.weight - other.Value.weight);
-
 			}
 		}
-		
-		if (uniqueResponse)
+
+		if (unique)
 		{
 			totalFitness++;
 		}
-		maxFitness++;
-		averageWeightDifference = averageWeightDifference / static_cast<float>(value.Num());
-		totalFitness += averageWeightDifference;
 		maxFitness++;
 	}
 
@@ -273,100 +149,80 @@ float UEmotionBrain::FitnessFunction(const TMap<Stimuli, EmotionalResponse>& val
 
 FString UEmotionBrain::GetStimuliResponse(Stimuli stimuli)
 {
-	EmotionalResponse response = m_StimuliEmotionDictionary.FindRef(stimuli);
+	Emotion response = m_StimuliEmotionDictionary.FindRef(stimuli);
 
 	FString information = "";
 
 	switch (stimuli)
 	{
-	case Stimuli::KnownEntitySeen:
-		information = "Stimuli: Known entity seen, ";
+	case Stimuli::KnownFriendlyEntitySeen:
+		information = "I saw a friend and i feel ";
 		break;
-	case Stimuli::KnownEntityHeard:
-		information = "Stimuli: Known entity heard, ";
+	case Stimuli::KnownFriendlyEntityHeard:
+		information = "I heard a friend and i feel ";
+		break;
+	case Stimuli::KnownAggressiveEntitySeen:
+		information = "I saw an enemy and i feel ";
+		break;
+	case Stimuli::KnownAggressiveEntityHeard:
+		information = "I heard an enemy and i feel ";
 		break;
 	case Stimuli::UnknownEntitySeen:
-		information = "Stimuli: Unknown entity seen, ";
+		information = "I saw something i've never seen before and i feel ";
 		break;
 	case Stimuli::UnknownEntityHeard:
-		information = "Stimuli: Unknown entity heard, ";
+		information = "I heard something i've never seen before and i feel ";
+		break;
+	case Stimuli::DeadEntitySeen:
+		information = "I just saw a dead body and i feel ";
 		break;
 	case Stimuli::Damaged:
-		information = "Stimuli: Damaged, ";
+		information = "I got hurt and i feel ";
 		break;
 	case Stimuli::CloseToDeath:
-		information = "Stimuli: Close to death, ";
-		break;
-	case Stimuli::Dismembered:
-		information = "Stimuli: Dismembered, ";
+		information = "I'm about to die and i feel ";
 		break;
 	case Stimuli::Alone:
-		information = "Stimuli: Alone, ";
+		information = "I'm alone and i feel ";
 		break;
 	case Stimuli::InAGroup:
-		information = "Stimuli: In a group, ";
+		information = "I'm in a group and i feel ";
+		break;
+	case Stimuli::NoStimuli:
+		information = "Nothing is happening and i feel ";
 		break;
 	default:
-		information = "Stimuli: Error non stimuli, ";
+		information = "Error non stimuli, ";
 	}
 
-	switch (response.action)
-	{
-	case GoalAction::Evade:
-		information = information + "Action: Evading, ";
-		break;
-	case GoalAction::Chase:
-		information = information + "Action: Chasing, ";
-		break;
-	case GoalAction::Flee:
-		information = information + "Action: Fleeing, ";
-		break;
-	case GoalAction::Pursue:
-		information = information + "Action: Pursuing, ";
-		break;
-	case GoalAction::Hide:
-		information = information + "Action: Hiding, ";
-		break;
-	case GoalAction::Fight:
-		information = information + "Action: Fighting, ";
-		break;
-	case GoalAction::Interact:
-		information = information + "Action: Interacting, ";
-		break;
-	case GoalAction::NoGoal:
-	default:
-		information = information + "Action: No action, ";
-		break;
-	}
-	switch (response.emotion)
+	switch (response)
 	{
 	case Emotion::Scared:
-		information = information + "Emotion: Scared, ";
+		information = information + "Scared";
 		break;
 	case Emotion::Angry:
-		information = information + "Emotion: Angry, ";
+		information = information + "Angry";
 		break;
 	case Emotion::Disgusted:
-		information = information + "Emotion: Disgusted, ";
+		information = information + "Disgusted";
 		break;
 	case Emotion::Relaxed:
-		information = information + "Emotion: Relaxed, ";
+		information = information + "Relaxed";
 		break;
 	case Emotion::Joyful:
-		information = information + "Emotion: Joyful, ";
+		information = information + "Joyful";
 		break;
 	case Emotion::Saddened:
-		information = information + "Emotion: Saddened, ";
+		information = information + "Saddened";
 		break;
 	case Emotion::Bored:
-		information = information + "Emotion: Bored, ";
+		information = information + "Bored";
 		break;
 	case Emotion::NoEmotion:
 	default:
-		information = information + "Emotion: No emotion, ";
+		information = information + "No emotion";
 		break;
 	}
 
-	information = information + "Weight: " + FString::SanitizeFloat(response.weight);
 	return information;
 }
