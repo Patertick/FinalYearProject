@@ -89,6 +89,16 @@ private:
 	Directive m_Directive{ Directive::DoNothing };
 	bool m_Controllable{ false };
 
+	// self properties
+
+	FString m_Name{ "" };
+
+	const int32 KNAMEGENERATIONTHRESHOLD{ 2000 };
+
+	const int32 KNAMELENGTHMIN{ 3 };
+
+	const int32 KNAMELENGTHMAX{ 10 };
+
 	// sensory variables
 
 	float m_FieldOfView{ 90.0f };
@@ -177,6 +187,8 @@ public:
 		return true;
 	}
 
+	// action functions
+
 	void CallAction(Action action);
 
 	void SetAction(Action action) { m_CurrentAction = action; }
@@ -189,7 +201,11 @@ public:
 		return false;
 	}
 
+	// memory functions
+
 	void UpdateMemory(TArray<AActor*> actorsInView) { m_MemoryBrain->UpdateObjectsInMemory(actorsInView); } // call memory brain with new information
+
+	// null state
 
 	State NULLState() {
 		State nullState;
@@ -197,6 +213,17 @@ public:
 		nullState.actionState = ActionState::DoingNothing;
 		return nullState;
 	}
+
+	// name generation & getter
+
+	void GenerateName();
+
+	float GetNameFitness(FString name);
+
+	bool IsVowel(char character);
+
+	UFUNCTION(BlueprintCallable, Category = Name)
+		FString GetName() { return m_Name; }
 
 };
 

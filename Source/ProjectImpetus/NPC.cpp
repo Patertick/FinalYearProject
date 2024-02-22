@@ -3,6 +3,7 @@
 
 #include "NPC.h"
 #include <Kismet/GameplayStatics.h>
+#include "Math/UnrealMathUtility.h"
 
 // Sets default values
 ANPC::ANPC()
@@ -27,6 +28,7 @@ void ANPC::BeginPlay()
 	newState.actionState = ActionState::DoingNothing;
 	m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
 		
+	GenerateName();
 	
 }
 
@@ -246,3 +248,104 @@ void ANPC::CallAction(Action action)
 	
 }
 
+
+void ANPC::GenerateName()
+{
+	for (int i = 0; i < KNAMEGENERATIONTHRESHOLD; i++)
+	{
+		// generate size of name
+
+		int32 numberOfCharacters = FMath::RandRange(KNAMELENGTHMIN, KNAMELENGTHMAX);
+
+		FString generatedName = "";
+
+		// generate characters
+		for (int chr = 0; chr < numberOfCharacters; chr++)
+		{
+			char generatedCharacter;
+
+			generatedCharacter = static_cast<char>(FMath::RandRange(97, 122)); // a-z lowercase
+
+			generatedName = generatedName + generatedCharacter;
+		}
+
+		// test for fitness
+		if (GetNameFitness(generatedName) > GetNameFitness(m_Name))
+		{
+			m_Name = generatedName;
+		}
+	}
+}
+
+
+float ANPC::GetNameFitness(FString name)
+{
+	if (name.Len() <= 0) return 0.0f; // make sure a null name has zero fitness
+
+	float totalFitness{ 0.0f };
+
+	int32 continuousVowelCount{ 0 };
+	int32 continuousConsonantCount{ 0 };
+
+	bool tooManyContinuousVowels{ false };
+	bool tooManyContinuousConsonants{ false };
+
+	char currentChar;
+	char lastChar = name.GetCharArray()[0];
+
+	for (int i = 1; i < name.Len(); i++)
+	{
+		currentChar = name.GetCharArray()[i];
+
+		if (IsVowel(currentChar) && IsVowel(lastChar))
+		{
+			continuousConsonantCount = 0; // reset consonant counter
+			continuousVowelCount++; // increment vowel counter
+		}
+		else
+		{
+			continuousVowelCount = 0; // reset vowel counter
+			continuousConsonantCount++; // increment consonant counter
+		}
+
+		if (continuousVowelCount >= 2)
+		{
+			tooManyContinuousVowels = true;
+		}
+		if (continuousConsonantCount >= 2)
+		{
+			tooManyContinuousConsonants = true;
+		}
+
+		if (lastChar == 'q' && currentChar != 'u')
+		{
+			totalFitness = 0.0f;
+		}
+
+		lastChar = currentChar;
+	}
+
+	// if three or more consonants are continuous, reduce fitness (or in this case increase fitness if not)
+	if (tooManyContinuousConsonants)
+	{
+		totalFitness = 0.0f;
+	}
+
+	// same for vowels
+	if (tooManyContinuousVowels)
+	{
+		totalFitness = 0.0f;
+	}
+
+	// fitness should be between 0.0 and 1.0
+	return totalFitness;
+}
+
+bool ANPC::IsVowel(char character)
+{
+	if (character == 'a' || character == 'e' || character == 'i' || character == 'o' || character == 'u')
+	{
+		return true;
+	}
+	return false;
+}
