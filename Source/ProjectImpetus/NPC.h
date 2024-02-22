@@ -93,11 +93,11 @@ private:
 
 	FString m_Name{ "" };
 
-	const int32 KNAMEGENERATIONTHRESHOLD{ 20000 };
+	const int32 KNAMEGENERATIONTHRESHOLD{ 200 };
 
-	const int32 KNAMELENGTHMIN{ 3 };
+	const int32 KNAMELENGTHMIN{ 1 };
 
-	const int32 KNAMELENGTHMAX{ 10 };
+	const int32 KNAMELENGTHMAX{ 5 };
 
 	// sensory variables
 
@@ -219,6 +219,14 @@ public:
 	void GenerateName();
 
 	float GetNameFitness(FString name);
+
+	TArray<FString> GenerateStartConnectors();
+
+	TArray<FString> GenerateMiddleConnectors();
+
+	TArray<FString> GenerateEndConnectors();
+
+	FString CreateConnectorName(int32 numberOfPairs);
 
 	bool IsVowel(char character);
 

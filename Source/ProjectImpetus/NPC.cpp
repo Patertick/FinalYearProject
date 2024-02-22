@@ -253,23 +253,36 @@ void ANPC::GenerateName()
 {
 	// generate size of name
 
-	int32 numberOfCharacters = FMath::RandRange(KNAMELENGTHMIN, KNAMELENGTHMAX);
+	int32 numberOfPairs = FMath::RandRange(KNAMELENGTHMIN, KNAMELENGTHMAX);
 
-	while(GetNameFitness(m_Name) == 0.0f) // exit once a valid name has been found
+	FString title = "";
+	int32 titleNum = FMath::RandRange(0, 3);
+
+	if (titleNum == 0)
 	{
-		FString generatedName = "";
+		title = "Dr. ";
+	}
+	else if (titleNum == 1)
+	{
+		title = "Officer ";
+	}
+	else if (titleNum == 2)
+	{
+		title = "Mr. ";
+	}
+	else if (titleNum == 3)
+	{
+		title = "Mrs. ";
+	}
 
-		// generate characters
-		for (int chr = 0; chr < numberOfCharacters; chr++)
-		{
-			char generatedCharacter;
-
-			generatedCharacter = static_cast<char>(FMath::RandRange(97, 122)); // a-z lowercase
-
-			generatedName = generatedName + generatedCharacter;
-		}
+	for (int i = 0; i < KNAMEGENERATIONTHRESHOLD; i++) // exit once a valid name has been found
+	{
+		FString generatedName = CreateConnectorName(numberOfPairs);
 		
-		m_Name = generatedName;
+		if (GetNameFitness(generatedName) > GetNameFitness(m_Name))
+		{
+			m_Name = title + generatedName;
+		}
 		
 	}
 }
@@ -279,130 +292,8 @@ float ANPC::GetNameFitness(FString name)
 {
 	if (name.Len() <= 0) return 0.0f; // make sure a null name has zero fitness
 
-	float totalFitness{ 1.0f }; // start at 100 and decrease fitness for non desirable names
-
-	int32 continuousVowelCount{ 0 };
-	int32 continuousConsonantCount{ 0 };
-
-	bool tooManyContinuousVowels{ false };
-	bool tooManyContinuousConsonants{ false };
-
-	char currentChar;
-	char lastChar = name.GetCharArray()[0];
-
-	if(lastChar == 'u' || lastChar == 'o')
-	{
-		totalFitness = 0.0f;
-	}
-
-	for (int i = 1; i < name.Len(); i++)
-	{
-		currentChar = name.GetCharArray()[i];
-
-		if (IsVowel(currentChar) && IsVowel(lastChar))
-		{
-			continuousConsonantCount = 0; // reset consonant counter
-			continuousVowelCount++; // increment vowel counter
-		}
-		else
-		{
-			continuousVowelCount = 0; // reset vowel counter
-			continuousConsonantCount++; // increment consonant counter
-		}
-
-		if (continuousVowelCount >= 3)
-		{
-			tooManyContinuousVowels = true;
-		}
-		if (continuousConsonantCount >= 3)
-		{
-			tooManyContinuousConsonants = true;
-		}
-
-		// if there's a Q it must be followed by U
-		if (lastChar == 'q' && currentChar != 'u')
-		{
-			totalFitness = 0.0f;
-		}
-
-		// if there's a Q it must be the first character
-		if (currentChar == 'q')
-		{
-			totalFitness = 0.0f;
-		}
-
-		// if there's a c, x, j, y, w, z, k, l or v it cannot be followed or preceded by a consonant
-		if (currentChar == 'c' || currentChar == 'x' || currentChar == 'j' || currentChar == 'y' || currentChar == 'w' || currentChar == 'z'
-			|| currentChar == 'k' || currentChar == 'l' || currentChar == 'v')
-		{
-			if (!IsVowel(lastChar))
-			{
-				totalFitness = 0.0f;
-			}
-
-			if (i != name.Len() - 1) // not last item
-			{
-				if (!IsVowel(name.GetCharArray()[i + 1]))
-				{
-					totalFitness = 0.0f;
-				}
-			}
-		}
-
-		// if there's an h it should not be preceded by a consonant (except from S or C). It must not be followed by any consonant
-		if (currentChar == 'h')
-		{
-			if (!IsVowel(lastChar))
-			{
-				if (lastChar != 's' && lastChar != 'c')
-				{
-					totalFitness = 0.0f;
-				}
-			}
-
-			if (i != name.Len() - 1)
-			{
-				if (!IsVowel(name.GetCharArray()[i + 1]))
-				{
-					totalFitness = 0.0f;
-				}
-			}
-		}
-
-		// if there's a t it must not be preceded by a consonant
-		if (currentChar == 't')
-		{
-			if (!IsVowel(lastChar))
-			{
-				totalFitness = 0.0f;
-			}
-		}
-
-		lastChar = currentChar;
-	}
-
-	lastChar = name.GetCharArray()[name.Len() - 1];
-
-	// q, x, j, y, w, z, c or v should not be the final character
-	if (lastChar == 'q' || lastChar == 'x' || lastChar == 'j' || lastChar == 'y' || lastChar == 'w' || lastChar == 'z' || lastChar == 'c' || lastChar == 'v')
-	{
-		totalFitness = 0.0f;
-	}
-
-	// if three or more consonants are continuous, reduce fitness (or in this case increase fitness if not)
-	if (tooManyContinuousConsonants)
-	{
-		totalFitness = 0.0f;
-	}
-
-	// same for vowels
-	if (tooManyContinuousVowels)
-	{
-		totalFitness = 0.0f;
-	}
-
 	// fitness should be between 0.0 and 1.0
-	return totalFitness;
+	return 1.0f;
 }
 
 bool ANPC::IsVowel(char character)
@@ -412,4 +303,249 @@ bool ANPC::IsVowel(char character)
 		return true;
 	}
 	return false;
+}
+
+TArray<FString> ANPC::GenerateStartConnectors()
+{
+	TArray<FString> potentialStartConnectors;
+	for (int i = 65; i < 91; i++)// a-z Uppercase as this is the start letter
+	{
+		char newCharacter = static_cast<char>(i); 
+		if (!IsVowel(newCharacter))
+		{
+			FString startConnector = "";
+			startConnector = startConnector + newCharacter;
+			startConnector = startConnector + 'a';
+			potentialStartConnectors.Add(startConnector);
+			startConnector = "";
+			startConnector = startConnector + newCharacter;
+			startConnector = startConnector + 'e';
+			potentialStartConnectors.Add(startConnector);
+			startConnector = "";
+			startConnector = startConnector + newCharacter;
+			startConnector = startConnector + 'i';
+			potentialStartConnectors.Add(startConnector);
+			startConnector = "";
+			startConnector = startConnector + newCharacter;
+			startConnector = startConnector + 'o';
+			potentialStartConnectors.Add(startConnector);
+			startConnector = "";
+			startConnector = startConnector + newCharacter;
+			startConnector = startConnector + 'u';
+			potentialStartConnectors.Add(startConnector);
+		}
+
+	}
+
+	return potentialStartConnectors;
+}
+
+TArray<FString> ANPC::GenerateMiddleConnectors()
+{
+	TArray<FString> potentialMiddleConnectors;
+	for (int i = 97; i < 123; i++)// a-z lowercase
+	{
+		char newCharacter = static_cast<char>(i);
+		FString middleConnector = "";
+		if (!IsVowel(newCharacter))
+		{
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'a';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'e';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'i';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'o';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'u';
+			potentialMiddleConnectors.Add(middleConnector);
+		}
+		if (IsVowel(newCharacter))
+		{
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'r';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 't';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'p';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 's';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'd';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'f';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'g';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'k';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'l';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'b';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'n';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'm';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'a';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'e';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'i';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'o';
+			potentialMiddleConnectors.Add(middleConnector);
+			middleConnector = "";
+			middleConnector = middleConnector + newCharacter;
+			middleConnector = middleConnector + 'u';
+			potentialMiddleConnectors.Add(middleConnector);
+
+		}
+	}
+
+	return potentialMiddleConnectors;
+}
+
+TArray<FString> ANPC::GenerateEndConnectors()
+{
+	TArray<FString> potentialEndConnectors;
+	for (int i = 97; i < 123; i++)// a-z lowercase
+	{
+		char newCharacter = static_cast<char>(i);
+		if (IsVowel(newCharacter))
+		{
+			FString endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'r';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 't';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'p';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 's';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'd';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'f';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'g';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + "sh";
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + "tch";
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'k';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + "ck";
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'l';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + "ce";
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'b';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'n';
+			potentialEndConnectors.Add(endConnector);
+			endConnector = "";
+			endConnector = endConnector + newCharacter;
+			endConnector = endConnector + 'm';
+			potentialEndConnectors.Add(endConnector);
+
+		}
+	}
+
+	return potentialEndConnectors;
+}
+
+FString ANPC::CreateConnectorName(int32 numberOfPairs)
+{
+	TArray<FString> startConnectors = GenerateStartConnectors();
+	TArray<FString> middleConnectors = GenerateMiddleConnectors();
+	TArray<FString> endConnectors = GenerateEndConnectors();
+	FString name = "";
+	for (int i = 0; i < numberOfPairs; i++)
+	{
+		if (i == 0)
+		{
+			name = name + startConnectors[FMath::RandRange(0, startConnectors.Num() - 1)];
+		}
+		else if (i == numberOfPairs - 1)
+		{
+			name = name + endConnectors[FMath::RandRange(0, endConnectors.Num() - 1)];
+		}
+		else
+		{
+			name = name + middleConnectors[FMath::RandRange(0, middleConnectors.Num() - 1)];
+		}
+	}
+	return name;
 }
