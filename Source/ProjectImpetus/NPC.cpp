@@ -251,12 +251,12 @@ void ANPC::CallAction(Action action)
 
 void ANPC::GenerateName()
 {
-	for (int i = 0; i < KNAMEGENERATIONTHRESHOLD; i++)
+	// generate size of name
+
+	int32 numberOfCharacters = FMath::RandRange(KNAMELENGTHMIN, KNAMELENGTHMAX);
+
+	while(GetNameFitness(m_Name) == 0.0f) // exit once a valid name has been found
 	{
-		// generate size of name
-
-		int32 numberOfCharacters = FMath::RandRange(KNAMELENGTHMIN, KNAMELENGTHMAX);
-
 		FString generatedName = "";
 
 		// generate characters
@@ -268,12 +268,9 @@ void ANPC::GenerateName()
 
 			generatedName = generatedName + generatedCharacter;
 		}
-
-		// test for fitness
-		if (GetNameFitness(generatedName) > GetNameFitness(m_Name))
-		{
-			m_Name = generatedName;
-		}
+		
+		m_Name = generatedName;
+		
 	}
 }
 
@@ -282,7 +279,7 @@ float ANPC::GetNameFitness(FString name)
 {
 	if (name.Len() <= 0) return 0.0f; // make sure a null name has zero fitness
 
-	float totalFitness{ 0.0f };
+	float totalFitness{ 1.0f }; // start at 100 and decrease fitness for non desirable names
 
 	int32 continuousVowelCount{ 0 };
 	int32 continuousConsonantCount{ 0 };
@@ -292,6 +289,11 @@ float ANPC::GetNameFitness(FString name)
 
 	char currentChar;
 	char lastChar = name.GetCharArray()[0];
+
+	if(lastChar == 'u' || lastChar == 'o')
+	{
+		totalFitness = 0.0f;
+	}
 
 	for (int i = 1; i < name.Len(); i++)
 	{
@@ -308,21 +310,83 @@ float ANPC::GetNameFitness(FString name)
 			continuousConsonantCount++; // increment consonant counter
 		}
 
-		if (continuousVowelCount >= 2)
+		if (continuousVowelCount >= 3)
 		{
 			tooManyContinuousVowels = true;
 		}
-		if (continuousConsonantCount >= 2)
+		if (continuousConsonantCount >= 3)
 		{
 			tooManyContinuousConsonants = true;
 		}
 
+		// if there's a Q it must be followed by U
 		if (lastChar == 'q' && currentChar != 'u')
 		{
 			totalFitness = 0.0f;
 		}
 
+		// if there's a Q it must be the first character
+		if (currentChar == 'q')
+		{
+			totalFitness = 0.0f;
+		}
+
+		// if there's a c, x, j, y, w, z, k, l or v it cannot be followed or preceded by a consonant
+		if (currentChar == 'c' || currentChar == 'x' || currentChar == 'j' || currentChar == 'y' || currentChar == 'w' || currentChar == 'z'
+			|| currentChar == 'k' || currentChar == 'l' || currentChar == 'v')
+		{
+			if (!IsVowel(lastChar))
+			{
+				totalFitness = 0.0f;
+			}
+
+			if (i != name.Len() - 1) // not last item
+			{
+				if (!IsVowel(name.GetCharArray()[i + 1]))
+				{
+					totalFitness = 0.0f;
+				}
+			}
+		}
+
+		// if there's an h it should not be preceded by a consonant (except from S or C). It must not be followed by any consonant
+		if (currentChar == 'h')
+		{
+			if (!IsVowel(lastChar))
+			{
+				if (lastChar != 's' && lastChar != 'c')
+				{
+					totalFitness = 0.0f;
+				}
+			}
+
+			if (i != name.Len() - 1)
+			{
+				if (!IsVowel(name.GetCharArray()[i + 1]))
+				{
+					totalFitness = 0.0f;
+				}
+			}
+		}
+
+		// if there's a t it must not be preceded by a consonant
+		if (currentChar == 't')
+		{
+			if (!IsVowel(lastChar))
+			{
+				totalFitness = 0.0f;
+			}
+		}
+
 		lastChar = currentChar;
+	}
+
+	lastChar = name.GetCharArray()[name.Len() - 1];
+
+	// q, x, j, y, w, z, c or v should not be the final character
+	if (lastChar == 'q' || lastChar == 'x' || lastChar == 'j' || lastChar == 'y' || lastChar == 'w' || lastChar == 'z' || lastChar == 'c' || lastChar == 'v')
+	{
+		totalFitness = 0.0f;
 	}
 
 	// if three or more consonants are continuous, reduce fitness (or in this case increase fitness if not)

@@ -93,7 +93,7 @@ private:
 
 	FString m_Name{ "" };
 
-	const int32 KNAMEGENERATIONTHRESHOLD{ 2000 };
+	const int32 KNAMEGENERATIONTHRESHOLD{ 20000 };
 
 	const int32 KNAMELENGTHMIN{ 3 };
 
