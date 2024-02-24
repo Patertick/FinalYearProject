@@ -281,10 +281,15 @@ void ANPC::GenerateName()
 		
 		if (GetNameFitness(generatedName) > GetNameFitness(m_Name))
 		{
+			// convert first letter to uppercase
+			FString capitalName = generatedName.ToUpper();
+			generatedName.GetCharArray()[0] = capitalName.GetCharArray()[0];
 			m_Name = title + generatedName;
 		}
 		
 	}
+
+
 }
 
 
@@ -292,8 +297,68 @@ float ANPC::GetNameFitness(FString name)
 {
 	if (name.Len() <= 0) return 0.0f; // make sure a null name has zero fitness
 
+	float totalFitness{ 0.0f };
+	float maxFitness{ 0.0f };
+
+	bool tooManyContinuousVowels{ false };
+	bool tooManyContinuousConsonants{ false };
+
+	int32 continuousVowels{ 0 };
+	int32 continuousConsonants{ 0 };
+
+	// measure continuous vowels / consonants for fitness (rgf makes no sense in any context)
+	for (int i = 0; i < name.Len() - 1; i++)
+	{
+		char lastChar;
+		if (i != 0)
+		{
+			lastChar = name.GetCharArray()[i - 1];
+		}
+		else
+		{
+			lastChar = '#';
+		}
+		char currentChar = name.GetCharArray()[i];
+		char nextChar = name.GetCharArray()[i + 1];
+
+		if (IsVowel(currentChar) && IsVowel(nextChar))
+		{
+			continuousConsonants = 0;
+			continuousVowels++;
+		}
+		else if (!IsVowel(currentChar) && !IsVowel(nextChar))
+		{
+			continuousVowels = 0;
+			continuousConsonants++;
+		}
+
+		if (continuousVowels > 3)
+		{
+			tooManyContinuousVowels = true;
+		}
+		else if (continuousConsonants > 2)
+		{
+			tooManyContinuousConsonants = true;
+		}
+		
+		totalFitness += GetPairingValidityFitness(lastChar, currentChar, nextChar, maxFitness);
+		
+
+	}
+
+	if (!tooManyContinuousConsonants)
+	{
+		totalFitness++;
+	}
+	if (!tooManyContinuousVowels)
+	{
+		totalFitness++;
+	}
+	maxFitness++;
+	maxFitness++;
+
 	// fitness should be between 0.0 and 1.0
-	return 1.0f;
+	return totalFitness / maxFitness;
 }
 
 bool ANPC::IsVowel(char character)
@@ -308,7 +373,7 @@ bool ANPC::IsVowel(char character)
 TArray<FString> ANPC::GenerateStartConnectors()
 {
 	TArray<FString> potentialStartConnectors;
-	for (int i = 65; i < 91; i++)// a-z Uppercase as this is the start letter
+	for (int i = 97; i < 123; i++)// a-z lowercase
 	{
 		char newCharacter = static_cast<char>(i); 
 		if (!IsVowel(newCharacter))
@@ -548,4 +613,385 @@ FString ANPC::CreateConnectorName(int32 numberOfPairs)
 		}
 	}
 	return name;
+}
+
+
+float ANPC::GetPairingValidityFitness(char first, char second, char third, float &maxFitnessRef)
+{
+	float fitness{ 0.0f };
+	// switch look up table that finds valid pairings of characters (valid meaning reasonable for names)
+	switch (second)
+	{
+	case 'a':
+		// increase fitness if the preceding character is ideal (in this case testing for non-ideal characters)
+		if (first != 'q' && first != 'u' && first != 'a')
+		{
+			fitness++;
+		}
+		// do the same for the following character
+		if (third != 'e' && third != 'a' && third != 'h')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'b':
+		if (first != 'q' && first != 't' && first != 'y' && first != 'p' && first != 'd' && first != 'f' && first != 'g'
+			&& first != 'h' && first != 'j' && first != 'k' && first != 'z' && first != 'x' && first != 'c' && first != 'v' && first != 'b')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 't' && third != 'p' && third != 'd' && third != 'f' && third != 'g' && third != 'j'
+			&& third != 'k' && third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'c':
+		if (first != 'q' && first != 'w' && first != 'r' && first != 't' && first != 'y' && first != 'p' && first != 'd'
+			&& first != 'f' && first != 'g' && first != 'h' && first != 'j' && first != 'k' && first != 'l' && first != 'z' && first != 'x'
+			&& first != 'c' && first != 'v' && first != 'b' && first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 't' && third != 'p' && third != 'd' && third != 'f' && third != 'g'
+			&& third != 'j' && third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'd':
+		if (first != 'q' && first != 't' && first != 'y' && first != 'p' && first != 'f' && first != 'g' && first != 'h'
+			&& first != 'j' && first != 'k' && first != 'z' && first != 'x' && first != 'c' && first != 'v' && first != 'b')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 't' && third != 'p' && third != 'k' && third != 'f' && third != 'g'
+			&& third != 'j' && third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'e':
+		if (first != 'q' && first != 'i')
+		{
+			fitness++;
+		}
+		if (third != 'w' && third != 'o' && third != 'j')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'f':
+		if (first != 'q' && first != 't' && first != 'y' && first != 'p' && first != 'd'
+			&& first != 'g' && first != 'h' && first != 'j' && first != 'k' && first != 'z' && first != 'x'
+			&& first != 'c' && first != 'v' && first != 'b' && first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 't' && third != 'y' && third != 'p' && third != 'd' && third != 'g' && third != 'h' && third != 'k'
+			&& third != 'j' && third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'g':
+		if (first != 'q' && first != 't' && first != 'p' && first != 'd' && first != 'f' && first != 'h' && first != 'j'
+			&& first != 'k' && first != 'z' && first != 'x' && first != 'c' && first != 'v' && first != 'b' && first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 't' && third != 'p' && third != 'd' && third != 'f' && third != 'j' && third != 'k'
+			&& third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'h':
+		if (first != 'q' && first != 'y' && first != 'f' && first != 'h' && first != 'j' && first != 'l' && first != 'z'
+			&& first != 'x' && first != 'v')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 't' && third != 'p' && third != 's' && third != 'd' && third != 'f' && third != 'g'
+			&& third != 'h' && third != 'j' && third != 'k' && third != 'l' && third != 'z' && third != 'x' && third != 'c' && third != 'v' 
+			&& third != 'b' && third != 'n'	&& third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'i':
+		if (first != 'q' && first != 'i')
+		{
+			fitness++;
+		}
+		if (third != 'w' && third != 'e' && third != 'a' && third != 'u' && third != 'i' && third != 'o' && third != 'h' && third != 'j')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'j':
+		if (first != 'q' && first != 'w' && first != 'e' && first != 'r' && first != 't'
+			&& first != 'y' && first != 'u' && first != 'i' && first != 'p' && first != 's' && first != 'd'
+			&& first != 'f' && first != 'g' && first != 'h' && first != 'j' && first != 'k' && first != 'l'
+			&& first != 'z' && first != 'x' && first != 'c' && first != 'v' && first != 'b' && first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 'r' && third != 't' && third != 'y' && third != 'p' && third != 's' && third != 'd'
+			&& third != 'f' && third != 'g' && third != 'h' && third != 'j' && third != 'k' && third != 'l' && third != 'z' && third != 'x'
+			&& third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'k':
+		if (first != 'q' && first != 't' && first != 'y' && first != 'p' && first != 'd' && first != 'f' && first != 'g'
+			&& first != 'h' && first != 'j' && first != 'k' && first != 'z' && first != 'x' && first != 'b')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 't' && third != 'p' && third != 'd' && third != 'f' && third != 'g' && third != 'j' && third != 'k'
+			&& third != 'z' && third != 'x' && third != 'c' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'l':
+		if (first != 'q' && first != 't' && first != 'y' && first != 'h' && first != 'j' && first != 'z' && first != 'x'
+			&& first != 'n' && first != 'm' && first != 'v')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 'r' && third != 'y' && third != 'h' && third != 'j' && third != 'x' && third != 'c' && third != 'v')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'm':
+		if (first != 'q' && first != 't' && first != 'p' && first != 'd' && first != 'f' && first != 'g'
+			&& first != 'h' && first != 'j' && first != 'k' && first != 'c' && first != 'x' && first != 'v' && first != 'b' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'r' && third != 'f' && third != 'g' && third != 'h' && third != 'j' && third != 'l'
+			&& third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'n':
+		if (first != 'q' && first != 't' && first != 'p' && first != 'd' && first != 'g'
+			&& first != 'h' && first != 'j' && first != 'k' && first != 'c' && first != 'x' && first != 'v' && first != 'b')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'r' && third != 'f' && third != 'g' && third != 'h' && third != 'j' && third != 'l'
+			&& third != 'z' && third != 'x' && third != 'c' && third != 'v')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'o':
+		if (first != 'q' && first != 'e' && first != 'u' && first != 'i')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'p':
+		if (first != 'q' && first != 't' && first != 'y' && first != 'd' && first != 'f' && first != 'g'
+			&& first != 'h' && first != 'j' && first != 'k' && first != 'z' && first != 'x' && first != 'c' && first != 'v' && first != 'b')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 't' && third != 'd' && third != 'f' && third != 'g' && third != 'j' && third != 'k'
+			&& third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'q':
+		if (first != 'q' && first != 'w' && first != 'r' && first != 't' && first != 'y'
+			&& first != 'u' && first != 'i' && first != 'p' && first != 's' && first != 'd' && first != 'f' && first != 'g' && first != 'h'
+			&& first != 'j' && first != 'k' && first != 'l' && first != 'z' && first != 'x' && first != 'c' && first != 'v' && first != 'b'
+			&& first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 'e' && third != 'r' && third != 't' && third != 'y' && third != 'i'
+			&& third != 'o' && third != 'p' && third != 'a' && third != 's' && third != 'd' && third != 'f' && third != 'g'
+			&& third != 'h' && third != 'j' && third != 'k' && third != 'l' && third != 'z' && third != 'x' && third != 'c'
+			&& third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'r':
+		if (first != 'q' && first != 'r' && first != 'y' && first != 'j' && first != 'k' && first != 'l'
+			&& first != 'x' && first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 'r' && third != 't' && third != 'j' && third != 'x')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 's':
+		if (first != 'q' && first != 'h' && first != 'z' && first != 'x' && first != 'v' && first != 'b'
+			&& first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'j' && third != 'z' && third != 'x' && third != 'v')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 't':
+		if (first != 'q' && first != 'w' && first != 'y' && first != 'p' && first != 'd' && first != 'f' && first != 'g'
+			&& first != 'h' && first != 'j' && first != 'k' && first != 'z' && first != 'x' && first != 'c' && first != 'v' && first != 'b')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'p' && third != 'd' && third != 'f' && third != 'g' && third != 'j' && third != 'k' && third != 'l'
+			&& third != 'z' && third != 'x' && third != 'c' && third != 'v' && third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'u':
+		if (first != 'i')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'o' && third != 'a' && third != 'j')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'v':
+		if (first != 'q' && first != 'w' && first != 'r' && first != 't' && first != 'y' && first != 'p' && first != 's' && first != 'd'
+			&& first != 'f' && first != 'g' && first != 'h' && first != 'j' && first != 'k' && first != 'l' && first != 'z' && first != 'x'
+			&& first != 'c' && first != 'b' && first != 'n' && first != 'm' && first != 'v')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 't' && third != 'p' && third != 's' && third != 'd' && third != 'f' && third != 'g'
+			&& third != 'h' && third != 'j' && third != 'k' && third != 'l' && third != 'z' && third != 'x' && third != 'c' && third != 'v'
+			&& third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'w':
+		if (first != 'q' && first != 'w' && first != 'r' && first != 'y' && first != 'h' && first != 'j' && first != 'k' && first != 'l' 
+			&& first != 'z' && first != 'x' && first != 'c' && first != 'v')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 't' && third != 'j' && third != 'z' && third != 'x' && third != 'c' && third != 'v')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'x':
+		if (first != 'q' && first != 'w' && first != 'r' && first != 't' && first != 'y' && first != 'p' && first != 's' && first != 'd'
+			&& first != 'f' && first != 'g' && first != 'h' && first != 'j' && first != 'k' && first != 'l' && first != 'z' && first != 'x'
+			&& first != 'c' && first != 'b' && first != 'n' && first != 'm' && first != 'v')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 'r' && third != 't' && third != 'y' && third != 'p' && third != 's' && third != 'd' 
+			&& third != 'f' && third != 'g' && third != 'h' && third != 'j' && third != 'k' && third != 'l' && third != 'z' && third != 'x'
+			&& third != 'c' && third != 'v'	&& third != 'b' && third != 'n' && third != 'm')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'y':
+		if (first != 'q' && first != 'f' && first != 'j' && first != 'l' && first != 'x' && first != 'y')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 'r' && third != 't' && third != 'y' && third != 'p' && third != 'd'
+			&& third != 'f' && third != 'h' && third != 'j' && third != 'k' && third != 'l' && third != 'z' && third != 'x'
+			&& third != 'c' && third != 'v' && third != 'b')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	case 'z':
+		if (first != 'q' && first != 'w' && first != 't' && first != 'y' && first != 'p' && first != 's' && first != 'd'
+			&& first != 'f' && first != 'g' && first != 'h' && first != 'j' && first != 'k' && first != 'x' && first != 'c'
+			&& first != 'v' && first != 'b' && first != 'n' && first != 'm')
+		{
+			fitness++;
+		}
+		if (third != 'q' && third != 'w' && third != 't' && third != 'p' && third != 's' && third != 'd'
+			&& third != 'f' && third != 'g' && third != 'h' && third != 'j' && third != 'k' && third != 'l' && third != 'x'
+			&& third != 'c' && third != 'v' && third != 'b')
+		{
+			fitness++;
+		}
+		maxFitnessRef++;
+		maxFitnessRef++;
+		break;
+	}
+
+
+	return fitness;
 }

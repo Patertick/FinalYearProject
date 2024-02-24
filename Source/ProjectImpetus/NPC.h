@@ -228,6 +228,8 @@ public:
 
 	FString CreateConnectorName(int32 numberOfPairs);
 
+	float GetPairingValidityFitness(char first, char second, char third, float &maxFitnessRef);
+
 	bool IsVowel(char character);
 
 	UFUNCTION(BlueprintCallable, Category = Name)
