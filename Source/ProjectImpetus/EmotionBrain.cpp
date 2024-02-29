@@ -12,6 +12,7 @@ UEmotionBrain::UEmotionBrain()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
+	m_PresidingEmotion = Emotion::NoEmotion;
 	// ...
 }
 // Called when the game starts
@@ -19,61 +20,32 @@ void UEmotionBrain::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Generate Stimuli Emotional response dictionary using search based procedural generation
-
-	int32 count{ 0 };
-
-	TMap<Stimuli, Emotion> generatedDict;
-
-
-	generatedDict.Add(Stimuli::KnownFriendlyEntitySeen);
-	generatedDict.Add(Stimuli::KnownFriendlyEntityHeard);
-	generatedDict.Add(Stimuli::KnownAggressiveEntitySeen);
-	generatedDict.Add(Stimuli::KnownAggressiveEntityHeard);
-	generatedDict.Add(Stimuli::UnknownEntitySeen);
-	generatedDict.Add(Stimuli::UnknownEntityHeard);
-	generatedDict.Add(Stimuli::DeadEntitySeen);
-	generatedDict.Add(Stimuli::Damaged);
-	generatedDict.Add(Stimuli::CloseToDeath);
-	generatedDict.Add(Stimuli::Alone);
-	generatedDict.Add(Stimuli::InAGroup);
-	generatedDict.Add(Stimuli::NoStimuli);
-	generatedDict[Stimuli::KnownFriendlyEntitySeen] = Emotion::NoEmotion;
-	generatedDict[Stimuli::KnownFriendlyEntityHeard] = Emotion::NoEmotion;
-	generatedDict[Stimuli::KnownAggressiveEntitySeen] = Emotion::NoEmotion;
-	generatedDict[Stimuli::KnownAggressiveEntityHeard] = Emotion::NoEmotion;
-	generatedDict[Stimuli::UnknownEntitySeen] = Emotion::NoEmotion;
-	generatedDict[Stimuli::UnknownEntityHeard] = Emotion::NoEmotion;
-	generatedDict[Stimuli::DeadEntitySeen] = Emotion::NoEmotion;
-	generatedDict[Stimuli::Damaged] = Emotion::NoEmotion;
-	generatedDict[Stimuli::CloseToDeath] = Emotion::NoEmotion;
-	generatedDict[Stimuli::Alone] = Emotion::NoEmotion;
-	generatedDict[Stimuli::InAGroup] = Emotion::NoEmotion;
-	generatedDict[Stimuli::NoStimuli] = Emotion::NoEmotion;
-	m_StimuliEmotionDictionary = generatedDict;
-
-	while (count <= m_SearchThreshold) // is the number of searches required reached?
-	{
-		generatedDict[Stimuli::KnownFriendlyEntitySeen] = SelectRandomEmotion();
-		generatedDict[Stimuli::KnownFriendlyEntityHeard] = SelectRandomEmotion();
-		generatedDict[Stimuli::KnownAggressiveEntitySeen] = SelectRandomEmotion();
-		generatedDict[Stimuli::KnownAggressiveEntityHeard] = SelectRandomEmotion();
-		generatedDict[Stimuli::UnknownEntitySeen] = SelectRandomEmotion();
-		generatedDict[Stimuli::UnknownEntityHeard] = SelectRandomEmotion();
-		generatedDict[Stimuli::DeadEntitySeen] = SelectRandomEmotion();
-		generatedDict[Stimuli::Damaged] = SelectRandomEmotion();
-		generatedDict[Stimuli::CloseToDeath] = SelectRandomEmotion();
-		generatedDict[Stimuli::Alone] = SelectRandomEmotion();
-		generatedDict[Stimuli::InAGroup] = SelectRandomEmotion();
-		generatedDict[Stimuli::NoStimuli] = SelectRandomEmotion();
-		if (FitnessFunction(generatedDict) > FitnessFunction(m_StimuliEmotionDictionary))
-		{
-			m_StimuliEmotionDictionary = generatedDict;
-		}
-
-		count++;
-	}
-	
+	// create dictionary from default values
+	TPair<Emotion, float> newItem;
+	newItem.Key = Emotion::Scared;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
+	newItem.Key = Emotion::Angry;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
+	newItem.Key = Emotion::Disgusted;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
+	newItem.Key = Emotion::Relaxed;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
+	newItem.Key = Emotion::Joyful;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
+	newItem.Key = Emotion::Saddened;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
+	newItem.Key = Emotion::Bored;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
+	newItem.Key = Emotion::NoEmotion;
+	newItem.Value = 0.5f;
+	m_EmotionWeights.Add(newItem);
 }
 
 
@@ -82,147 +54,100 @@ void UEmotionBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// while messages exist, pop message
+	if (m_Message.Num() > 0)
+	{
+		PopMessage();
+		// find emotion with most weight and priority
+		m_PresidingEmotion = FindPresidingEmotion();
+	}
+
 	// ...
 }
 
-Emotion UEmotionBrain::SelectRandomEmotion()
+
+void UEmotionBrain::PopMessage()
 {
-	int32 randomNum;
-	randomNum = FMath::RandRange(0, KNUMBEROFEMOTIONS - 1);
-	switch (randomNum)
-	{
-	case 0:
-		return Emotion::Scared;
-	case 1:
-		return Emotion::Angry;
-	case 2:
-		return Emotion::Disgusted;
-	case 3:
-		return Emotion::Relaxed;
-	case 4:
-		return Emotion::Joyful;
-	case 5:
-		return Emotion::Saddened;
-	case 6:
-		return Emotion::Bored;
-	case 7:
-	default:
-		return Emotion::NoEmotion;
-	}
+	// add to emotion weights dictionary then remove from message array
+	TPair<Emotion, float> poppedPair = m_Message[0];
+	m_EmotionWeights[poppedPair.Key] *= poppedPair.Value;
+	if (m_EmotionWeights[poppedPair.Key] == 0.0f) m_EmotionWeights[poppedPair.Key] = 0.1f; // cap min value at 0.1, otherwise emotions will drop to 0 and be unusable
+	if (m_EmotionWeights[poppedPair.Key] > 1.0f) m_EmotionWeights[poppedPair.Key] = 1.0f; // cap max value at 1.0, otherwise a certain emotion may get too high and overwrite every other emotion
+	m_Message.RemoveAt(0);
 }
 
-float UEmotionBrain::FitnessFunction(const TMap<Stimuli, Emotion>& value)
+void UEmotionBrain::PushMessage(Emotion emotion, float percentage)
 {
-	// for each entry, check if the emotional response is reasonable
-	// add to a total fitness value for evaluation properties
+	if (percentage < 0.0f || percentage > 2.0f) return; // do not add to message if out of range, assert a value between 0.0 and 2.0 (between 100% decrease and 100% increase)
 
-	float totalFitness{ 0.0f }; // 0.0f means completely unfit
-	// since each key value can increment the total fitness two potential times, total fitness is number of items * 2
-	float maxFitness{ 0.0f }; // so we can confine fitness to between 0.0 and 1.0
+	if (percentage == 1.0f) return; // pointless message as it changes nothing
 
-	// for every item
-	for (const TPair<Stimuli, Emotion>& entry : value)
+	// TO DO: add evaluation of quality contradiction E.G. Fear increases by 50% but quality Fearless is active for this NPC
+
+	TPair<Emotion, float> newPair;
+	newPair.Key = emotion;
+	newPair.Value = percentage;
+	m_Message.Add(newPair);
+}
+
+Emotion UEmotionBrain::FindPresidingEmotion()
+{
+	TPair<Emotion, float> highestWeight;
+	highestWeight.Key = Emotion::Scared;
+	highestWeight.Value = m_EmotionWeights[highestWeight.Key];
+	for (const TPair<Emotion, float>& entry : m_EmotionWeights)
 	{
-		// higher fitness for unique entries, completely random dictionary otherwise
-		bool unique{ true };
-		for (const TPair<Stimuli, Emotion>& other : value)
+
+		// find a pair with a lower weight than current entry
+		if(highestWeight.Value < entry.Value) // overwrite
 		{
-			if (entry.Key != other.Key)
+			highestWeight.Value = entry.Value;
+			highestWeight.Key = entry.Key;
+		}
+		else if (highestWeight.Value == entry.Value) // find which emotion has higher priority
+		{
+			if (FindPriority(highestWeight.Key) < FindPriority(entry.Key))
 			{
-				if (entry.Value == other.Value)
-				{
-					unique = false;
-				}
+				highestWeight.Value = entry.Value;
+				highestWeight.Key = entry.Key;
 			}
 		}
-
-		if (unique)
-		{
-			totalFitness++;
-		}
-		maxFitness++;
+		
 	}
 
-	return totalFitness / maxFitness;
-
+	return highestWeight.Key;
 }
 
-FString UEmotionBrain::GetStimuliResponse(Stimuli stimuli)
+float UEmotionBrain::FindPriority(Emotion emotion)
 {
-	Emotion response = m_StimuliEmotionDictionary.FindRef(stimuli);
-
-	FString information = "";
-
-	switch (stimuli)
-	{
-	case Stimuli::KnownFriendlyEntitySeen:
-		information = "I saw a friend and i feel ";
-		break;
-	case Stimuli::KnownFriendlyEntityHeard:
-		information = "I heard a friend and i feel ";
-		break;
-	case Stimuli::KnownAggressiveEntitySeen:
-		information = "I saw an enemy and i feel ";
-		break;
-	case Stimuli::KnownAggressiveEntityHeard:
-		information = "I heard an enemy and i feel ";
-		break;
-	case Stimuli::UnknownEntitySeen:
-		information = "I saw something i've never seen before and i feel ";
-		break;
-	case Stimuli::UnknownEntityHeard:
-		information = "I heard something i've never seen before and i feel ";
-		break;
-	case Stimuli::DeadEntitySeen:
-		information = "I just saw a dead body and i feel ";
-		break;
-	case Stimuli::Damaged:
-		information = "I got hurt and i feel ";
-		break;
-	case Stimuli::CloseToDeath:
-		information = "I'm about to die and i feel ";
-		break;
-	case Stimuli::Alone:
-		information = "I'm alone and i feel ";
-		break;
-	case Stimuli::InAGroup:
-		information = "I'm in a group and i feel ";
-		break;
-	case Stimuli::NoStimuli:
-		information = "Nothing is happening and i feel ";
-		break;
-	default:
-		information = "Error non stimuli, ";
-	}
-
-	switch (response)
+	// priority values not important, just so long as precedence order is maintained
+	switch (emotion)
 	{
 	case Emotion::Scared:
-		information = information + "Scared";
+		return 1.0f; // highest priority, 1
 		break;
 	case Emotion::Angry:
-		information = information + "Angry";
+		return 0.9f; // 2
 		break;
 	case Emotion::Disgusted:
-		information = information + "Disgusted";
+		return 0.4f; // 5
 		break;
 	case Emotion::Relaxed:
-		information = information + "Relaxed";
+		return 0.25f; // low priority, 7
 		break;
 	case Emotion::Joyful:
-		information = information + "Joyful";
+		return 0.5f; // medium priority, 4
 		break;
 	case Emotion::Saddened:
-		information = information + "Saddened";
+		return 0.8f; // 3
 		break;
 	case Emotion::Bored:
-		information = information + "Bored";
+		return 0.3f; // 6
 		break;
 	case Emotion::NoEmotion:
 	default:
-		information = information + "No emotion";
+		return 0.1f; // lowest priority, 8
 		break;
-	}
 
-	return information;
+	}
 }

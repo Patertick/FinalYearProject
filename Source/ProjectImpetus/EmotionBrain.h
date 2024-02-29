@@ -9,31 +9,14 @@
 UENUM()
 enum Emotion
 {
-	Scared,
-	Angry,
-	Disgusted,
-	Relaxed,
-	Joyful,
-	Saddened,
-	Bored,
-	NoEmotion,
-};
-
-UENUM()
-enum Stimuli
-{
-	KnownFriendlyEntitySeen		UMETA(DisplayName = "Known Friendly Entity Seen"),
-	KnownFriendlyEntityHeard	UMETA(DisplayName = "Known Friendly Entity Heard"),
-	KnownAggressiveEntitySeen   UMETA(DisplayName = "Known Aggressive Entity Seen"),
-	KnownAggressiveEntityHeard  UMETA(DisplayName = "Known Aggressive Entity Heard"),
-	UnknownEntitySeen			UMETA(DisplayName = "Unknown Entity Seen"),
-	UnknownEntityHeard			UMETA(DisplayName = "Unknown Entity Heard"),
-	DeadEntitySeen				UMETA(DisplayName = "Dead Entity Seen"),
-	Damaged						UMETA(DisplayName = "Damaged"),
-	CloseToDeath				UMETA(DisplayName = "Close To Death"),
-	Alone						UMETA(DisplayName = "Alone"),
-	InAGroup					UMETA(DisplayName = "In A Group"),
-	NoStimuli					UMETA(DisplayName = "No Stimuli"),
+	Scared UMETA(DisplayName = "Scared"),
+	Angry UMETA(DisplayName = "Angry"),
+	Disgusted UMETA(DisplayName = "Disgusted"),
+	Relaxed UMETA(DisplayName = "Relaxed"),
+	Joyful UMETA(DisplayName = "Joyful"),
+	Saddened UMETA(DisplayName = "Saddened"),
+	Bored UMETA(DisplayName = "Bored"),
+	NoEmotion UMETA(DisplayName = "No Emotion"),
 };
 
 
@@ -53,13 +36,11 @@ protected:
 private:
 	ANPC* m_NPCRef{ nullptr };
 
-	// procedural variables
+	TEnumAsByte<Emotion> m_PresidingEmotion;
 
-	TMap<Stimuli, Emotion> m_StimuliEmotionDictionary; // generated procedurally
+	TMap<Emotion, float> m_EmotionWeights; // emotion weights for use in goal creation
 
-	int32 m_SearchThreshold{ 5000 }; // number of searches to do when generating a dictionary
-
-	const int32 KNUMBEROFEMOTIONS = 8;
+	TArray<TPair<Emotion, float>> m_Message; // messages from sensory & memory brains such as Fear 1.4 which translates to increase fear response by 40% & 0.4 is decrease by 60%
 
 public:	
 	// Called every frame
@@ -69,12 +50,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SetNPC)
 		void SetNPC(ANPC* npc) { m_NPCRef = npc; }
 
-	// procedural functions
+	void PopMessage();
 
-	Emotion SelectRandomEmotion();
-	float FitnessFunction(const TMap<Stimuli, Emotion>& value);
+	void PushMessage(Emotion emotion, float percentage);
+
+	Emotion FindPresidingEmotion();
+
+	float FindPriority(Emotion emotion);
 
 	UFUNCTION(BlueprintCallable, Category = Getter)
-		FString GetStimuliResponse(Stimuli stimuli);
+		TEnumAsByte<Emotion> GetPresidingEmotion() { return m_PresidingEmotion; }
 		
 };

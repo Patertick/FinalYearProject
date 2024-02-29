@@ -66,6 +66,42 @@ void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 				// this actor is in the memory array, update the snapshot
 				m_ObjectsInMemory[i].location = actor->GetActorLocation(); // copy the location
 				newActor = true; 
+
+				// actor is known, if this actor is an NPC, reduce fear response
+
+				if (Cast<ANPC>(actor) != nullptr)
+				{
+					if (!m_Qualities.Contains(Quality::Fearless))
+					{
+						if (m_Qualities.Contains(Quality::Coward))
+						{
+							TPair<Emotion, float> newMessage;
+							newMessage.Key = Emotion::Scared;
+							newMessage.Value = 0.999f; // decrease by .1%
+							m_NPCRef->SendMessageToEmotionBrain(newMessage);
+							newMessage.Key = Emotion::NoEmotion;
+							newMessage.Value = 1.001f; // increase by .1% 
+							m_NPCRef->SendMessageToEmotionBrain(newMessage);
+						}
+						else
+						{
+							TPair<Emotion, float> newMessage;
+							newMessage.Key = Emotion::Scared;
+							newMessage.Value = 0.997f; // decrease by .3%
+							m_NPCRef->SendMessageToEmotionBrain(newMessage);
+							newMessage.Key = Emotion::NoEmotion;
+							newMessage.Value = 1.003f; // increase by .3% 
+							m_NPCRef->SendMessageToEmotionBrain(newMessage);
+						}
+					}
+					else
+					{
+						TPair<Emotion, float> newMessage;
+						newMessage.Key = Emotion::NoEmotion;
+						newMessage.Value = 1.005f; // increase by .5% 
+						m_NPCRef->SendMessageToEmotionBrain(newMessage);
+					}
+				}
 			}
 		}
 		// actor is not in memory, add a new addition
@@ -76,20 +112,29 @@ void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 			newSnapshot.location = actor->GetActorLocation();
 			m_ObjectsInMemory.Add(newSnapshot);
 
-			//// set material to some arbritrary material that denotes being seen
+			// actor is not known if this actor is an NPC, add to fear response given that it doesn't contradict qualities
 
-			//if (Cast<ATile3D>(actor) != nullptr)
-			//{
-			//	Cast<ATile3D>(actor)->m_IsSeen = true;
-			//}
-			//else if (Cast<AInteractable>(actor) != nullptr)
-			//{
-			//	Cast<AInteractable>(actor)->m_IsSeen = true;
-			//}
-			//else if (Cast<ANPC>(actor) != nullptr)
-			//{
-			//	Cast<ANPC>(actor)->m_IsSeen = true;
-			//}
+			if (Cast<ANPC>(actor) != nullptr)
+			{
+				if (!m_Qualities.Contains(Quality::Fearless))
+				{
+					if (m_Qualities.Contains(Quality::Coward))
+					{
+						TPair<Emotion, float> newMessage;
+						newMessage.Key = Emotion::Scared;
+						newMessage.Value = 2.0f; // increase by 100%
+						m_NPCRef->SendMessageToEmotionBrain(newMessage);
+					}
+					else 
+					{
+						TPair<Emotion, float> newMessage;
+						newMessage.Key = Emotion::Scared;
+						newMessage.Value = 1.5f; // increase by 50%
+						m_NPCRef->SendMessageToEmotionBrain(newMessage);
+					}
+				}
+			}
+
 		}
 	}
 	

@@ -248,6 +248,11 @@ void ANPC::CallAction(Action action)
 	
 }
 
+void ANPC::SendMessageToEmotionBrain(TPair<Emotion, float> message)
+{
+	m_EmotionBrain->PushMessage(message.Key, message.Value);
+}
+
 
 void ANPC::GenerateName()
 {

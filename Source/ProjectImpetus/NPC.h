@@ -214,6 +214,10 @@ public:
 		return nullState;
 	}
 
+	// Emotion functions
+
+	void SendMessageToEmotionBrain(TPair<Emotion, float> message);
+
 	// name generation & getter
 
 	void GenerateName();
