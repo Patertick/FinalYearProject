@@ -78,6 +78,6 @@ public:
 	int32 GetXBounds() { return m_XBounds; }
 	int32 GetYBounds() { return m_YBounds; }
 
-	float GetMapTraversability() { return m_MapTraversability; }
+	float GetSavedMapTraversability() { return m_MapTraversability; }
 	
 };

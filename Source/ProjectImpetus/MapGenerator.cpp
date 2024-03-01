@@ -7,8 +7,8 @@
 MapGenerator::MapGenerator()
 {
 	// randomize bounds
-	m_XBounds = FMath::RandRange(10, 12);
-	m_YBounds = FMath::RandRange(10, 12);
+	m_XBounds = FMath::RandRange(10, 30);
+	m_YBounds = FMath::RandRange(10, 30);
 	for (int y = 0; y < m_YBounds; y++)
 	{
 		FRow newRow;

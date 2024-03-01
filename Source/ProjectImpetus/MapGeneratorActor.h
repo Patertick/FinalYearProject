@@ -32,5 +32,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = MapGen)
 		int32 GetYBoundsData() { return m_MapGen->GetYBounds(); }
 	UFUNCTION(BlueprintCallable, Category = MapGen)
-		float GetMapFitness() { return m_MapGen->GetMapTraversability(); }
+		float GetMapFitness() { return m_MapGen->GetSavedMapTraversability(); }
 };
