@@ -17,6 +17,8 @@ void AMapGeneratorActor::BeginPlay()
 	Super::BeginPlay();
 
 	m_MapGen = new MapGenerator();
+
+	// test map traversability
 	
 }
 
@@ -24,6 +26,11 @@ void AMapGeneratorActor::BeginPlay()
 void AMapGeneratorActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (m_MapGen->GetMapTraversability() < 1.0f)
+	{
+		m_MapGen->GenerateMap();
+	}
 
 }
 

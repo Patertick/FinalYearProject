@@ -21,7 +21,6 @@ protected:
 	virtual void BeginPlay() override;
 private:
 	MapGenerator* m_MapGen{ nullptr };
-
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -32,4 +31,6 @@ public:
 		int32 GetXBoundsData() { return m_MapGen->GetXBounds(); }
 	UFUNCTION(BlueprintCallable, Category = MapGen)
 		int32 GetYBoundsData() { return m_MapGen->GetYBounds(); }
+	UFUNCTION(BlueprintCallable, Category = MapGen)
+		float GetMapFitness() { return m_MapGen->GetMapTraversability(); }
 };
