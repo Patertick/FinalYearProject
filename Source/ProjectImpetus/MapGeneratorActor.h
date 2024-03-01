@@ -26,7 +26,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable, Category = MapGen)
-		TArray<TEnumAsByte<Tile>> GetMapData() { return m_MapGen->GetTileMap(); }
+		TArray<FString> GetMapData() { return m_MapGen->GetTileMap(); }
 	UFUNCTION(BlueprintCallable, Category = MapGen)
 		int32 GetXBoundsData() { return m_MapGen->GetXBounds(); }
 	UFUNCTION(BlueprintCallable, Category = MapGen)

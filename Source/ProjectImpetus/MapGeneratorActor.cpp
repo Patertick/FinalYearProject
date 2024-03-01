@@ -27,7 +27,7 @@ void AMapGeneratorActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (m_MapGen->GetMapTraversability() < 1.0f)
+	if (m_MapGen->GetMapTraversability() <= 1.0f)
 	{
 		m_MapGen->GenerateMap();
 	}
