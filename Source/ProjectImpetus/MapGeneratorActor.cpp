@@ -27,9 +27,11 @@ void AMapGeneratorActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (GetMapFitness() <= 1.0f)
+
+	if (!m_FinishedGen)
 	{
 		m_MapGen->GenerateMap();
+		m_FinishedGen = m_MapGen->HasMapFinished();
 	}
 	else
 	{

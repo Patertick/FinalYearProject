@@ -39,6 +39,8 @@ private:
 
 	float m_MapTraversability{ 0.0f };
 
+	bool m_MapGenerated{ false };
+
 public:
 	MapGenerator();
 	~MapGenerator();
@@ -79,5 +81,7 @@ public:
 	int32 GetYBounds() { return m_YBounds; }
 
 	float GetSavedMapTraversability() { return m_MapTraversability; }
+
+	bool HasMapFinished() { return m_MapGenerated; }
 	
 };

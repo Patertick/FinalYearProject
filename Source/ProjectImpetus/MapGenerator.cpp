@@ -7,8 +7,8 @@
 MapGenerator::MapGenerator()
 {
 	// randomize bounds
-	m_XBounds = FMath::RandRange(10, 30);
-	m_YBounds = FMath::RandRange(10, 30);
+	m_XBounds = FMath::RandRange(80, 150);
+	m_YBounds = FMath::RandRange(80, 150);
 	for (int y = 0; y < m_YBounds; y++)
 	{
 		FRow newRow;
@@ -157,35 +157,160 @@ TArray<FIndex> MapGenerator::GetNeighbours(FIndex passedIndex)
 
 void MapGenerator::GenerateMap()
 {
+
+	//
+	// mutation based method
+	//
+
+	//// change five random tiles
+
+	//for (int i = 0; i < 5; i++)
+	//{
+	//	int32 randomXIndex = FMath::RandRange(0, m_XBounds - 1);
+	//	int32 randomYIndex = FMath::RandRange(0, m_YBounds - 1);
+	//	int32 randomTile = FMath::RandRange(0, 2);
+
+	//	if (randomTile == 0)
+	//	{
+	//		generatedMap[randomYIndex].index[randomXIndex] = Tile::FloorTile;
+	//	}
+	//	else if (randomTile == 1)
+	//	{
+	//		generatedMap[randomYIndex].index[randomXIndex] = Tile::WallTile;
+	//	}
+	//	else
+	//	{
+	//		generatedMap[randomYIndex].index[randomXIndex] = Tile::NoTile;
+	//	}
+
+	//}
+
+	//float mapTraversability = GetMapTraversability(generatedMap);
+	//if (m_MapTraversability < mapTraversability)
+	//{
+	//	m_Map = generatedMap;
+	//	m_MapTraversability = mapTraversability;
+	//}
+
+
+	//
+	// grammar based method
+	//
+
+
 	TArray<FRow> generatedMap = m_Map;
+	bool changedTile{ false };
 
-	// change five random tiles
-
-	for (int i = 0; i < 5; i++)
+	for (int y = 0; y < m_YBounds; y++)
 	{
-		int32 randomXIndex = FMath::RandRange(0, m_XBounds - 1);
-		int32 randomYIndex = FMath::RandRange(0, m_YBounds - 1);
-		int32 randomTile = FMath::RandRange(0, 2);
+		for (int x = 0; x < m_XBounds; x++)
+		{
+			// find neighbours, if none are floor tiles, replace with a none tile, also if this tile is on the edge of the map, replace with a none or wall tile
+			if (generatedMap[y].index[x] == Tile::FloorTile)
+			{
+				bool adjacentToFloor{ false };
+				bool onEdge{ false };
+				FIndex floorIndex;
+				floorIndex.x = x;
+				floorIndex.y = y;
+				TArray<FIndex> adjacentTiles = GetNeighbours(floorIndex);
 
-		if (randomTile == 0)
-		{
-			generatedMap[randomYIndex].index[randomXIndex] = Tile::FloorTile;
-		}
-		else if (randomTile == 1)
-		{
-			generatedMap[randomYIndex].index[randomXIndex] = Tile::WallTile;
-		}
-		else
-		{
-			generatedMap[randomYIndex].index[randomXIndex] = Tile::NoTile;
-		}
+				for (FIndex tile : adjacentTiles)
+				{
+					if (tile.x >= 0 && tile.x < m_XBounds && tile.y >= 0 && tile.y < m_YBounds)
+					{
+						if (generatedMap[tile.y].index[tile.x] == Tile::FloorTile)
+						{
+							adjacentToFloor = true;
+						}
+					}
+					else
+					{
+						onEdge = true;
+					}
+				}
 
+				if (!adjacentToFloor)
+				{
+					generatedMap[y].index[x] = Tile::NoTile;
+					changedTile = true;
+				}
+				if (onEdge)
+				{
+					int32 randNum = FMath::RandRange(0, 1);
+					if (randNum == 0) generatedMap[y].index[x] = Tile::NoTile;
+					else if (randNum == 1) generatedMap[y].index[x] = Tile::WallTile;
+					changedTile = true;
+				}
+			}
+			// find neighbours, if none are floor tiles, replace with a none tile
+			else if (generatedMap[y].index[x] == Tile::WallTile)
+			{
+				int32 numOfFloorTiles{ 0 };
+				bool adjacentToFloor{ false };
+				FIndex floorIndex;
+				floorIndex.x = x;
+				floorIndex.y = y;
+				TArray<FIndex> adjacentTiles = GetNeighbours(floorIndex);
+
+				for (FIndex tile : adjacentTiles)
+				{
+					if (tile.x >= 0 && tile.x < m_XBounds && tile.y >= 0 && tile.y < m_YBounds)
+					{
+						if (generatedMap[tile.y].index[tile.x] == Tile::FloorTile)
+						{
+							adjacentToFloor = true;
+							numOfFloorTiles++;
+						}
+					}
+				}
+
+				if (!adjacentToFloor)
+				{
+					generatedMap[y].index[x] = Tile::NoTile;
+					changedTile = true;
+				}
+				if (numOfFloorTiles >= 3)
+				{
+					generatedMap[y].index[x] = Tile::FloorTile;
+					changedTile = true;
+				}
+			}
+			// find neighbours, if there is a floor tile, replace with either a wall tile or a floor tile
+			else 
+			{
+				bool adjacentToFloor{ false };
+				FIndex floorIndex;
+				floorIndex.x = x;
+				floorIndex.y = y;
+				TArray<FIndex> adjacentTiles = GetNeighbours(floorIndex);
+
+				for (FIndex tile : adjacentTiles)
+				{
+					if (tile.x >= 0 && tile.x < m_XBounds && tile.y >= 0 && tile.y < m_YBounds)
+					{
+						if (generatedMap[tile.y].index[tile.x] == Tile::FloorTile)
+						{
+							adjacentToFloor = true;
+						}
+					}
+				}
+
+				if (adjacentToFloor)
+				{
+					int32 randNum = FMath::RandRange(0, 1);
+					if(randNum == 0) generatedMap[y].index[x] = Tile::FloorTile;
+					else if (randNum == 1) generatedMap[y].index[x] = Tile::WallTile;
+					changedTile = true;
+				}
+			}
+		}
 	}
 
-	float mapTraversability = GetMapTraversability(generatedMap);
-	if (m_MapTraversability < mapTraversability)
+	m_Map = generatedMap;
+
+	if (!changedTile)
 	{
-		m_Map = generatedMap;
-		m_MapTraversability = mapTraversability;
+		m_MapGenerated = true;
 	}
 }
