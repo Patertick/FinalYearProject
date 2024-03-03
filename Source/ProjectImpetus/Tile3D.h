@@ -51,6 +51,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	UFUNCTION(BlueprintCallable, Category = Type)
 		void SetType(TileType newType) { m_Type = newType; }
+	UFUNCTION(BlueprintCallable, Category = Startup)
+		void FindConnectedTiles();
 
 	TileType GetType() { return m_Type; }
 

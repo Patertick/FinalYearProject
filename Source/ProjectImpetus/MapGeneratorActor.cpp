@@ -30,7 +30,7 @@ void AMapGeneratorActor::Tick(float DeltaTime)
 
 	if (!m_FinishedGen)
 	{
-		m_MapGen->GenerateMap();
+		m_MapGen->RefineMap();
 		m_FinishedGen = m_MapGen->HasMapFinished();
 	}
 	else

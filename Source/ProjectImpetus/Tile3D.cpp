@@ -24,6 +24,12 @@ void ATile3D::BeginPlay()
 {
 	Super::BeginPlay();
 
+	
+
+}
+
+void ATile3D::FindConnectedTiles()
+{
 	TArray<AActor*> Tiles;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
 
@@ -36,7 +42,6 @@ void ATile3D::BeginPlay()
 			m_connectedTiles.Add(Cast<ATile3D>(tile));
 		}
 	}
-
 }
 
 // Called every frame
