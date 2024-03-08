@@ -5,15 +5,37 @@
 #include "CoreMinimal.h"
 
 UENUM()
-enum Tile {
+enum TileProp {
 	FloorTile UMETA(DisplayName = "Floor Tile"),
 	WallTile UMETA(DisplayName = "Wall Tile"),
 	NoTile UMETA(DisplayName = "No Tile"),
 };
 
+UENUM()
+enum ListType {
+	Open,
+	Closed,
+	None,
+};
+
+struct Tile {
+	TileProp property;
+	ListType list{ ListType::None };
+	int32 chunkNum{ -1 };
+};
+
 struct FRow {
 
-	TArray<TEnumAsByte<Tile>> index; // the x indices of the row
+	TArray<Tile> index; // the x indices of the row
+
+public:
+	void EmptyLists()
+	{
+		for (int i = 0; i < index.Num(); i++)
+		{
+			index[i].list = ListType::None;
+		}
+	}
 };
 
 struct FChunk {
@@ -21,6 +43,9 @@ struct FChunk {
 	bool completed{ false };
 	int32 xBound{ 0 };
 	int32 yBound{ 0 };
+	int32 chunkNum{ -1 };
+
+	bool isPaired{ false };
 };
 
 struct FChunkRow
@@ -66,13 +91,20 @@ public:
 
 	float GetMapTraversability(const TArray<FRow>& tileMap);
 	bool CanTraverseBreadthFirstSearch(FIndex first, FIndex second, const TArray<FRow>& tileMap);
-	TArray<FRow> ConstructPath(const TArray<FRow>& tileMap); // pass in a map and a map with constructed paths will be output
+	
+	bool CanTraverseBestFirstSearch(FIndex first, FIndex second, const TArray<FRow>& tileMap); // best first search to find if a path exists
+
+	bool AreAllChunksConnected();
+
+	TArray<FRow> ConstructPath(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds); // pass in a map and a map with constructed paths will be output
 
 	TArray<FRow> FinalRefinement(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds);
 
 	// if a path does not exist, by using best first searching, a direct path can be constructed to the goal
 	// after which the final connected map will be refined so that floor tiles aren't exposed and wall tiles aren't redundant
-	TArray<FRow> BestFirstPathConstruction(FIndex start, FIndex target, const TArray<FRow>& tileMap);
+	TArray<FRow> BestFirstPathConstruction(FIndex start, FIndex target, const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds);
+
+	TArray<FRow> ConnectChunks(const TArray<FRow>& entireMap, const FChunk& firstChunk, const FChunk& secondChunk);
 
 	TArray<FIndex> GetNeighbours(FIndex passedIndex);
 
@@ -91,11 +123,11 @@ public:
 			FString mapCol = "";
 			for (int x = 0; x < m_XBounds; x++)
 			{
-				if (m_Map[y].index[x] == Tile::FloorTile)
+				if (m_Map[y].index[x].property == TileProp::FloorTile)
 				{
 					mapCol = mapCol + "F";
 				}
-				else if (m_Map[y].index[x] == Tile::WallTile)
+				else if (m_Map[y].index[x].property == TileProp::WallTile)
 				{
 					mapCol = mapCol + "W";
 				}

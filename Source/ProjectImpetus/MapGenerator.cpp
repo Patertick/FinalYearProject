@@ -16,30 +16,35 @@ MapGenerator::MapGenerator()
 		for (int chunkX = 0; chunkX < m_NumXChunks; chunkX++)
 		{
 			FChunk newChunk;
+			newChunk.chunkNum = (chunkY * m_NumXChunks) + chunkX;
 			// randomize bounds
 			m_XBounds = FMath::RandRange(10, 20);
 			m_YBounds = FMath::RandRange(10, 20);
 			for (int y = 0; y < m_YBounds; y++)
 			{
 				FRow newRow;
-				TArray<TEnumAsByte<Tile>> generatedMap;
+				TArray<Tile> generatedMap;
 
 				for (int x = 0; x < m_XBounds; x++)
 				{
+					Tile newTile;
+					newTile.chunkNum = (chunkY * m_NumXChunks) + chunkX;
 					int32 randomTile = FMath::RandRange(0, 2);
 
 					if (randomTile == 0)
 					{
-						generatedMap.Add(Tile::FloorTile);
+						newTile.property = TileProp::FloorTile;
 					}
 					else if (randomTile == 1)
 					{
-						generatedMap.Add(Tile::WallTile);
+						newTile.property = TileProp::WallTile;
 					}
 					else
 					{
-						generatedMap.Add(Tile::NoTile);
+						newTile.property = TileProp::NoTile;
 					}
+
+					generatedMap.Add(newTile);
 				}
 				newRow.index = generatedMap;
 
@@ -73,14 +78,14 @@ float MapGenerator::GetMapTraversability(const TArray<FRow>& tileMap)
 	{
 		for (int x = 0; x < m_XBounds; x++)
 		{
-			if (tileMap[y].index[x] == Tile::FloorTile)
+			if (tileMap[y].index[x].property == TileProp::FloorTile)
 			{
 				totalFloorTiles++;
 				for (int i = 0; i < m_YBounds; i++)
 				{
 					for (int j = 0; j < m_XBounds; j++)
 					{
-						if (tileMap[i].index[j] == Tile::FloorTile)
+						if (tileMap[i].index[j].property == TileProp::FloorTile)
 						{
 							FIndex first, second;
 							first.x = x;
@@ -126,7 +131,7 @@ bool MapGenerator::CanTraverseBreadthFirstSearch(FIndex first, FIndex second, co
 		{
 			if (tile.x >= 0 && tile.x < m_XBounds && tile.y >= 0 && tile.y < m_YBounds)
 			{
-				if (tileMap[tile.y].index[tile.x] == Tile::FloorTile && !openList.Contains(tile) && !closedList.Contains(tile)) // if neighbour isnt in open or closed list and is a floor tile, traverse
+				if (tileMap[tile.y].index[tile.x].property == TileProp::FloorTile && !openList.Contains(tile) && !closedList.Contains(tile)) // if neighbour isnt in open or closed list and is a floor tile, traverse
 				{
 					openList.Add(tile);
 				}
@@ -139,6 +144,136 @@ bool MapGenerator::CanTraverseBreadthFirstSearch(FIndex first, FIndex second, co
 
 
 	return false;
+}
+
+bool MapGenerator::CanTraverseBestFirstSearch(FIndex first, FIndex second, const TArray<FRow>& tileMap)
+{
+	TArray<FRow> newMap = tileMap;
+
+	for (int i = 0; i < newMap.Num(); i++)
+	{
+		newMap[i].EmptyLists();
+	}
+
+	newMap[first.y].index[first.x].list = ListType::Open;
+	bool areItemsInOpenList{ true };
+	while (areItemsInOpenList == true)
+	{
+		// use the index with the lowest heuristic distance, in this case, manhattan heuristic will be used
+		// the lowest number when the x difference and y difference between this index and the target index and are summed
+		FIndex currentItem;
+		currentItem.x = -1;
+		currentItem.y = -1;
+		for (int i = 0; i < newMap.Num(); i++)
+		{
+			for (int j = 0; j < newMap[i].index.Num(); j++)
+			{
+				if (newMap[i].index[j].list == ListType::Open)
+				{
+					if (currentItem.x < 0 || currentItem.y < 0)
+					{
+						currentItem.x = j;
+						currentItem.y = i;
+					}
+
+					int32 newManhattanHeuristic = (abs(j - second.x)) + (abs(i - second.y));
+					int32 oldManhattanHeuristic = (abs(currentItem.x - second.x)) + (abs(currentItem.y - second.y));
+					if (newManhattanHeuristic < oldManhattanHeuristic)
+					{
+						currentItem.x = j;
+						currentItem.y = i;
+					}
+				}
+			}
+		}
+
+		if (currentItem == second) {
+			return true;
+		}
+
+		TArray<FIndex> adjacentTiles = GetNeighbours(currentItem);
+		
+		for (FIndex tile : adjacentTiles)
+		{
+			// only search directly adjacent tiles (above, below, left or right)
+			if (tile.directlyAdjacent)
+			{
+				if (tile.x >= 0 && tile.x < m_XBounds && tile.y >= 0 && tile.y < m_YBounds)
+				{
+					if (newMap[tile.y].index[tile.x].list == ListType::None && newMap[tile.y].index[tile.x].property == TileProp::FloorTile)
+					{
+						newMap[tile.y].index[tile.x].list = ListType::Open;
+					}
+				}
+			}
+		}
+
+		newMap[currentItem.y].index[currentItem.x].list = ListType::Closed;
+
+
+		areItemsInOpenList = false;
+		for (int i = 0; i < newMap.Num(); i++)
+		{
+			for (int j = 0; j < newMap[i].index.Num(); j++)
+			{
+				if (newMap[i].index[j].list == ListType::Open)
+				{
+					areItemsInOpenList = true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool MapGenerator::AreAllChunksConnected()
+{
+	// get a random chunk, doesn't matter which
+	int32 randomChunkX = FMath::RandRange(0, m_NumXChunks - 1);
+	int32 randomChunkY = FMath::RandRange(0, m_NumYChunks - 1);
+
+	// use this chunk to check against all other chunks
+
+	for (int y = 0; y < m_NumYChunks; y++)
+	{
+		for (int x = 0; x < m_NumXChunks; x++)
+		{
+			// pick random floor tile from each chunk
+			FIndex randomFloorTileFirst, randomFloorTileSecond;
+			bool isValid{ false };
+			while (!isValid)
+			{
+				randomFloorTileFirst.x = FMath::RandRange(0, m_XBounds - 1);
+				randomFloorTileFirst.y = FMath::RandRange(0, m_YBounds - 1);
+
+				if (m_Map[randomFloorTileFirst.y].index[randomFloorTileFirst.x].property == TileProp::FloorTile &&
+					m_Map[randomFloorTileFirst.y].index[randomFloorTileFirst.x].chunkNum == m_Chunks[randomChunkY].chunks[randomChunkX].chunkNum)
+				{
+					isValid = true;
+				}
+			}
+			isValid = false;
+			while (!isValid)
+			{
+				randomFloorTileSecond.x = FMath::RandRange(0, m_XBounds - 1);
+				randomFloorTileSecond.y = FMath::RandRange(0, m_YBounds - 1);
+
+				if (m_Map[randomFloorTileSecond.y].index[randomFloorTileSecond.x].property == TileProp::FloorTile &&
+					m_Map[randomFloorTileSecond.y].index[randomFloorTileSecond.x].chunkNum == m_Chunks[y].chunks[x].chunkNum)
+				{
+					isValid = true;
+				}
+			}
+			if (!CanTraverseBestFirstSearch(randomFloorTileFirst, randomFloorTileSecond, m_Map)) // find if traversable
+			{
+				return false; // if not, return false
+			}
+
+		}
+	}
+
+	return true;
 }
 
 TArray<FIndex> MapGenerator::GetNeighbours(FIndex passedIndex)
@@ -225,8 +360,38 @@ void MapGenerator::RefineMap()
 	{
 		// concatenate all chunks into m_Map, best first construct paths, refine and then mark map as completed
 		m_Map = ConcatenateChunksIntoMap();
-		m_Map = ConstructPath(m_Map);
+		
+		// construct paths between chunks by creating random pairs of chunks and running a path creation algorithm
+		bool pathsConnected{ false };
+		do {
+			int32 firstRandomXChunk = FMath::RandRange(0, m_NumXChunks - 1);
+			int32 firstRandomYChunk = FMath::RandRange(0, m_NumYChunks - 1);
+			int32 secondRandomXChunk = firstRandomXChunk + FMath::RandRange(-1, 1);
+			int32 secondRandomYChunk = firstRandomYChunk + FMath::RandRange(-1, 1);
+
+			if (firstRandomXChunk == secondRandomXChunk && firstRandomYChunk == secondRandomYChunk)
+			{
+				// do nothing
+			}
+			else
+			{
+				if (secondRandomXChunk >= 0 && secondRandomXChunk < m_NumXChunks && secondRandomYChunk >= 0 && secondRandomYChunk < m_NumYChunks)
+				{
+					m_Map = ConnectChunks(m_Map, m_Chunks[firstRandomYChunk].chunks[firstRandomXChunk], m_Chunks[secondRandomYChunk].chunks[secondRandomXChunk]);
+
+					
+					m_Chunks[firstRandomYChunk].chunks[firstRandomXChunk].isPaired = true;
+					m_Chunks[secondRandomYChunk].chunks[secondRandomXChunk].isPaired = true;
+				}
+			}
+
+			// get random indices from every chunk and check if they can each traverse between each other
+			pathsConnected = AreAllChunksConnected();
+		} while (!pathsConnected);
+
+		// final touches
 		m_Map = FinalRefinement(m_Map, m_XBounds, m_YBounds);
+		m_Map = FinalRefinement(m_Map, m_XBounds, m_YBounds); // run again to get rid of artefacts
 		m_MapGenerated = true;
 
 	}
@@ -248,7 +413,7 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 		{
 			// find neighbours, if none are floor tiles, replace with a none tile, also if this tile is on the edge of the map, replace with a none or wall tile
 			// if there are less than 3 floor tiles surrounding this floor tile, replace with either a wall or none tile
-			if (generatedMap.chunkMap[y].index[x] == Tile::FloorTile)
+			if (generatedMap.chunkMap[y].index[x].property == TileProp::FloorTile)
 			{
 				int32 numOfFloorTiles{ 0 };
 				bool adjacentToFloor{ false };
@@ -262,7 +427,7 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 				{
 					if (tile.x >= 0 && tile.x < tileMap.xBound && tile.y >= 0 && tile.y < tileMap.yBound)
 					{
-						if (generatedMap.chunkMap[tile.y].index[tile.x] == Tile::FloorTile)
+						if (generatedMap.chunkMap[tile.y].index[tile.x].property == TileProp::FloorTile)
 						{
 							adjacentToFloor = true;
 							numOfFloorTiles++;
@@ -276,27 +441,27 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 
 				if (!adjacentToFloor)
 				{
-					generatedMap.chunkMap[y].index[x] = Tile::NoTile;
+					generatedMap.chunkMap[y].index[x].property = TileProp::NoTile;
 					changedTile = true;
 				}
 				if (onEdge)
 				{
 					int32 randNum = FMath::RandRange(0, 1);
-					if (randNum == 0) generatedMap.chunkMap[y].index[x] = Tile::NoTile;
-					else if (randNum == 1) generatedMap.chunkMap[y].index[x] = Tile::WallTile;
+					if (randNum == 0) generatedMap.chunkMap[y].index[x].property = TileProp::NoTile;
+					else if (randNum == 1) generatedMap.chunkMap[y].index[x].property = TileProp::WallTile;
 					changedTile = true;
 				}
 				if (numOfFloorTiles < 3)
 				{
 					int32 randNum = FMath::RandRange(0, 1);
-					if (randNum == 0) generatedMap.chunkMap[y].index[x] = Tile::NoTile;
-					else if (randNum == 1) generatedMap.chunkMap[y].index[x] = Tile::WallTile;
+					if (randNum == 0) generatedMap.chunkMap[y].index[x].property = TileProp::NoTile;
+					else if (randNum == 1) generatedMap.chunkMap[y].index[x].property = TileProp::WallTile;
 					changedTile = true;
 				}
 			}
 			// find neighbours, if none are floor tiles, replace with a none tile
 			// if there are six or more floor tiles surrounding this tile, replace with a floor tile
-			else if (generatedMap.chunkMap[y].index[x] == Tile::WallTile)
+			else if (generatedMap.chunkMap[y].index[x].property == TileProp::WallTile)
 			{
 				int32 numOfFloorTiles{ 0 };
 				bool adjacentToFloor{ false };
@@ -309,7 +474,7 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 				{
 					if (tile.x >= 0 && tile.x < tileMap.xBound && tile.y >= 0 && tile.y < tileMap.yBound)
 					{
-						if (generatedMap.chunkMap[tile.y].index[tile.x] == Tile::FloorTile)
+						if (generatedMap.chunkMap[tile.y].index[tile.x].property == TileProp::FloorTile)
 						{
 							adjacentToFloor = true;
 							numOfFloorTiles++;
@@ -319,12 +484,12 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 
 				if (!adjacentToFloor)
 				{
-					generatedMap.chunkMap[y].index[x] = Tile::NoTile;
+					generatedMap.chunkMap[y].index[x].property = TileProp::NoTile;
 					changedTile = true;
 				}
 				if (numOfFloorTiles >= 6)
 				{
-					generatedMap.chunkMap[y].index[x] = Tile::FloorTile;
+					generatedMap.chunkMap[y].index[x].property = TileProp::FloorTile;
 					changedTile = true;
 				}
 			}
@@ -341,7 +506,7 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 				{
 					if (tile.x >= 0 && tile.x < tileMap.xBound && tile.y >= 0 && tile.y < tileMap.yBound)
 					{
-						if (generatedMap.chunkMap[tile.y].index[tile.x] == Tile::FloorTile)
+						if (generatedMap.chunkMap[tile.y].index[tile.x].property == TileProp::FloorTile)
 						{
 							adjacentToFloor = true;
 						}
@@ -351,8 +516,8 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 				if (adjacentToFloor)
 				{
 					int32 randNum = FMath::RandRange(0, 1);
-					if(randNum == 0) generatedMap.chunkMap[y].index[x] = Tile::FloorTile;
-					else if (randNum == 1) generatedMap.chunkMap[y].index[x] = Tile::WallTile;
+					if(randNum == 0) generatedMap.chunkMap[y].index[x].property = TileProp::FloorTile;
+					else if (randNum == 1) generatedMap.chunkMap[y].index[x].property = TileProp::WallTile;
 					changedTile = true;
 				}
 			}
@@ -361,7 +526,7 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 
 	if (!changedTile)
 	{
-		//generatedMap = ConstructPath(generatedMap); // create paths between all floor tiles
+		generatedMap.chunkMap = ConstructPath(generatedMap.chunkMap, generatedMap.xBound, generatedMap.yBound); // create paths between all floor tiles
 		generatedMap.chunkMap = FinalRefinement(generatedMap.chunkMap, generatedMap.xBound, generatedMap.yBound); // conduct final refinement
 		generatedMap.completed = true;
 		return generatedMap;
@@ -377,7 +542,7 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 	{
 		for (int x = 0; x < xBounds; x++)
 		{
-			if (newMap[y].index[x] == Tile::WallTile)
+			if (newMap[y].index[x].property == TileProp::WallTile)
 			{
 				bool adjacentToNone{ false };
 				FIndex floorIndex;
@@ -389,7 +554,7 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 				{
 					if (tile.x >= 0 && tile.x < xBounds && tile.y >= 0 && tile.y < yBounds)
 					{
-						if (newMap[tile.y].index[tile.x] == Tile::NoTile)
+						if (newMap[tile.y].index[tile.x].property == TileProp::NoTile)
 						{
 							adjacentToNone = true;
 						}
@@ -398,7 +563,7 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 
 				if (!adjacentToNone)
 				{
-					newMap[y].index[x] = Tile::FloorTile;
+					newMap[y].index[x].property = TileProp::FloorTile;
 				}
 			}
 		}
@@ -408,7 +573,7 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 	{
 		for (int x = 0; x < xBounds; x++)
 		{
-			if (newMap[y].index[x] == Tile::FloorTile)
+			if (newMap[y].index[x].property == TileProp::FloorTile)
 			{
 				bool isEdge{ false };
 				FIndex floorIndex;
@@ -430,10 +595,10 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 
 				if (isEdge)
 				{
-					newMap[y].index[x] = Tile::WallTile;
+					newMap[y].index[x].property = TileProp::WallTile;
 				}
 			}
-			else if (newMap[y].index[x] == Tile::NoTile) // all none tiles adjacent to floor tiles become wall tiles
+			else if (newMap[y].index[x].property == TileProp::NoTile) // all none tiles adjacent to floor tiles become wall tiles
 			{
 				bool adjacentToFloor{ false };
 				FIndex floorIndex;
@@ -445,7 +610,7 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 				{
 					if (tile.x >= 0 && tile.x < xBounds && tile.y >= 0 && tile.y < yBounds)
 					{
-						if (newMap[tile.y].index[tile.x] == Tile::FloorTile)
+						if (newMap[tile.y].index[tile.x].property == TileProp::FloorTile)
 						{
 							adjacentToFloor = true;
 						}
@@ -454,7 +619,7 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 
 				if (adjacentToFloor)
 				{
-					newMap[y].index[x] = Tile::WallTile;
+					newMap[y].index[x].property = TileProp::WallTile;
 				}
 			}
 		}
@@ -462,67 +627,83 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 	return newMap;
 }
 
-TArray<FRow> MapGenerator::ConstructPath(const TArray<FRow>& tileMap)
+TArray<FRow> MapGenerator::ConstructPath(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds)
 {
 	TArray<FRow> newMap = tileMap;
-	// for each floor tile
-	for (int y = 0; y < m_YBounds; y++)
+	int32 randomYIndex;
+	int32 randomXIndex;
+	// find random floor tile
+	do {
+		randomYIndex = FMath::RandRange(0, yBounds - 1);
+		randomXIndex = FMath::RandRange(0, xBounds - 1);
+	} while (tileMap[randomYIndex].index[randomXIndex].property != TileProp::FloorTile);
+
+	for (int i = 0; i < yBounds; i++)
 	{
-		for (int x = 0; x < m_XBounds; x++)
+		for (int j = 0; j < xBounds; j++)
 		{
-			if (tileMap[y].index[x] == Tile::FloorTile)
+			// find the path between every other floor tile, in cases where no such path exists, the algorithm constructs new paths
+			if (tileMap[i].index[j].property == TileProp::FloorTile)
 			{
-				for (int i = 0; i < m_YBounds; i++)
+				FIndex first, second;
+				first.x = randomXIndex;
+				first.y = randomYIndex;
+				second.x = j;
+				second.y = i;
+				newMap = BestFirstPathConstruction(first, second, newMap, xBounds, yBounds);
+			}
+		}
+	}
+		
+	
+
+	return newMap;
+}
+
+
+TArray<FRow> MapGenerator::BestFirstPathConstruction(FIndex start, FIndex target, const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds)
+{
+	// first of all find if a path exists
+	bool pathExists{ false };
+
+	TArray<FRow> newMap = tileMap;
+
+	for (int i = 0; i < newMap.Num(); i++)
+	{
+		newMap[i].EmptyLists();
+	}
+
+	newMap[start.y].index[start.x].list = ListType::Open;
+
+	while (pathExists == false)
+	{
+		// use the index with the lowest heuristic distance, in this case, manhattan heuristic will be used
+		// the lowest number when the x difference and y difference between this index and the target index and are summed
+		FIndex currentItem;
+		currentItem.x = -1;
+		currentItem.y = -1;
+		for (int i = 0; i < newMap.Num(); i++)
+		{
+			for (int j = 0; j < newMap[i].index.Num(); j++)
+			{
+				if (newMap[i].index[j].list == ListType::Open)
 				{
-					for (int j = 0; j < m_XBounds; j++)
+					if (currentItem.x < 0 || currentItem.y < 0)
 					{
-						// find the path between every other floor tile, in cases where no such path exists, the algorithm constructs new paths
-						if (tileMap[i].index[j] == Tile::FloorTile)
-						{
-							FIndex first, second;
-							first.x = x;
-							first.y = y;
-							second.x = j;
-							second.y = i;
-							newMap = BestFirstPathConstruction(first, second, newMap);
-						}
+						currentItem.x = j;
+						currentItem.y = i;
+					}
+
+					int32 newManhattanHeuristic = (abs(j - target.x)) + (abs(i - target.y));
+					int32 oldManhattanHeuristic = (abs(currentItem.x - target.x)) + (abs(currentItem.y - target.y));
+					if (newManhattanHeuristic < oldManhattanHeuristic)
+					{
+						currentItem.x = j;
+						currentItem.y = i;
 					}
 				}
 			}
 		}
-	}
-
-	return newMap;
-}
-
-
-TArray<FRow> MapGenerator::BestFirstPathConstruction(FIndex start, FIndex target, const TArray<FRow>& tileMap)
-{
-	// first of all find if a path exists
-	bool pathExists{ false };
-	TArray<FIndex> openList;
-	TArray<FIndex> closedList;
-
-	openList.Add(start);
-
-	while (openList.Num() > 0 && pathExists == false)
-	{
-		// use the index with the lowest heuristic distance, in this case, manhattan heuristic will be used
-		// the lowest number when the x difference and y difference between this index and the target index and are summed
-		FIndex currentItem = openList[0];
-		int32 removeIndex{ 0 };
-		for (int i = 0; i < openList.Num(); i++)
-		{
-			int32 newManhattanHeuristic = (abs(openList[i].x - target.x)) + (abs(openList[i].y - target.y));
-			int32 oldManhattanHeuristic = (abs(currentItem.x - target.x)) + (abs(currentItem.y - target.y));
-			if (newManhattanHeuristic < oldManhattanHeuristic)
-			{
-				currentItem = openList[i];
-				removeIndex = i;
-			}
-		}
-
-		openList.RemoveAt(removeIndex);
 
 		if (currentItem == target) {
 			pathExists = true;
@@ -535,78 +716,160 @@ TArray<FRow> MapGenerator::BestFirstPathConstruction(FIndex start, FIndex target
 			// only search directly adjacent tiles (above, below, left or right)
 			if (tile.directlyAdjacent)
 			{
-				if (tile.x >= 0 && tile.x < m_XBounds && tile.y >= 0 && tile.y < m_YBounds)
+				if (tile.x >= 0 && tile.x < xBounds && tile.y >= 0 && tile.y < yBounds)
 				{
-					if (tileMap[tile.y].index[tile.x] == Tile::FloorTile && !openList.Contains(tile) && !closedList.Contains(tile)) // if neighbour isnt in open or closed list and is a floor tile, traverse
+					if (newMap[tile.y].index[tile.x].list == ListType::None) // if neighbour isnt in open or closed list, traverse
 					{
-						openList.Add(tile);
+						newMap[tile.y].index[tile.x].list = ListType::Open;
 					}
 				}
 			}
 		}
 
-		closedList.Add(currentItem);
-
+		newMap[currentItem.y].index[currentItem.x].list = ListType::Closed;
 	}
 
-	if (pathExists)
+	// convert closed list to floor tiles
+	for (int i = 0; i < newMap.Num(); i++)
 	{
-		return tileMap;
-	}
-	else
-	{
-		TArray<FRow> newMap = tileMap;
-
-		// then from the closed list, find the index that was closest to the target and construct a best first path to the target
-		FIndex currentItem = closedList[0];
-		for (int i = 0; i < closedList.Num(); i++)
+		for (int j = 0; j < newMap[i].index.Num(); j++)
 		{
-			int32 newManhattanHeuristic = (abs(closedList[i].x - target.x)) + (abs(closedList[i].y - target.y));
-			int32 oldManhattanHeuristic = (abs(currentItem.x - target.x)) + (abs(currentItem.y - target.y));
-			if (newManhattanHeuristic < oldManhattanHeuristic)
+			if (newMap[i].index[j].list == ListType::Closed)
 			{
-				currentItem = closedList[i];
+				newMap[i].index[j].property = TileProp::FloorTile;
 			}
 		}
-
-		closedList.Empty();
-		bool endReached{ false };
-		int32 count{ 0 };
-		while (!endReached && count < 5000)
-		{
-			// find neighbours of closest item, then use the closest one as the new closest item, converting it to a floor tile if necessary
-			if (newMap[currentItem.y].index[currentItem.x] != Tile::FloorTile)
-			{
-				newMap[currentItem.y].index[currentItem.x] = Tile::FloorTile;
-			}
-
-			TArray<FIndex> adjacentTiles = GetNeighbours(currentItem);
-			closedList.Add(currentItem); // add to new closed list
-			currentItem = adjacentTiles[0];
-
-			for (int i = 0; i < adjacentTiles.Num(); i++)
-			{
-				if (adjacentTiles[i].directlyAdjacent)
-				{
-					if (adjacentTiles[i] == target) {
-						endReached = true;
-						return newMap;
-					}
-					int32 newManhattanHeuristic = (abs(adjacentTiles[i].x - target.x)) + (abs(adjacentTiles[i].y - target.y));
-					int32 oldManhattanHeuristic = (abs(currentItem.x - target.x)) + (abs(currentItem.y - target.y));
-					if (newManhattanHeuristic < oldManhattanHeuristic)
-					{
-						currentItem = adjacentTiles[i];
-					}
-				}
-			}
-			count++;
-		}
-		return newMap;
-
 	}
+
+	return newMap;
+	//}
+
+	//if (pathExists)
+	//{
+	//	return tileMap;
+	//}
+	//else
+	//{
+	//	TArray<FRow> newMap = tileMap;
+
+	//	// then from the closed list, find the index that was closest to the target and construct a best first path to the target
+	//	FIndex currentItem = closedList[0];
+	//	for (int i = 0; i < closedList.Num(); i++)
+	//	{
+	//		int32 newManhattanHeuristic = (abs(closedList[i].x - target.x)) + (abs(closedList[i].y - target.y));
+	//		int32 oldManhattanHeuristic = (abs(currentItem.x - target.x)) + (abs(currentItem.y - target.y));
+	//		if (newManhattanHeuristic < oldManhattanHeuristic)
+	//		{
+	//			currentItem = closedList[i];
+	//		}
+	//	}
+
+	//	closedList.Empty();
+	//	bool endReached{ false };
+	//	int32 count{ 0 };
+	//	while (!endReached)
+	//	{
+	//		// find neighbours of closest item, then use the closest one as the new closest item, converting it to a floor tile if necessary
+	//		if (newMap[currentItem.y].index[currentItem.x].property != TileProp::FloorTile)
+	//		{
+	//			newMap[currentItem.y].index[currentItem.x].property = TileProp::FloorTile;
+	//		}
+
+	//		TArray<FIndex> adjacentTiles = GetNeighbours(currentItem);
+	//		closedList.Add(currentItem); // add to new closed list
+	//		currentItem = adjacentTiles[0];
+
+	//		for (int i = 0; i < adjacentTiles.Num(); i++)
+	//		{
+	//			if (adjacentTiles[i].directlyAdjacent)
+	//			{
+	//				if (adjacentTiles[i] == target) {
+	//					endReached = true;
+	//					return newMap;
+	//				}
+	//				int32 newManhattanHeuristic = (abs(adjacentTiles[i].x - target.x)) + (abs(adjacentTiles[i].y - target.y));
+	//				int32 oldManhattanHeuristic = (abs(currentItem.x - target.x)) + (abs(currentItem.y - target.y));
+	//				if (newManhattanHeuristic < oldManhattanHeuristic)
+	//				{
+	//					currentItem = adjacentTiles[i];
+	//				}
+	//			}
+	//		}
+	//		count++;
+	//	}
+	//	return newMap;
+
+	//}
 
 	
+}
+
+TArray<FRow> MapGenerator::ConnectChunks(const TArray<FRow>& entireMap, const FChunk& firstChunk, const FChunk& secondChunk)
+{
+	// find ideal tile from each chunk (tiles that are closest) in the entire map
+
+
+	FIndex closestTileIndexFromFirstToSecond;
+	closestTileIndexFromFirstToSecond.x = 0;
+	closestTileIndexFromFirstToSecond.y = 0;
+	FIndex closestTileIndexFromSecondToFirst;
+	closestTileIndexFromSecondToFirst.x = 0;
+	closestTileIndexFromSecondToFirst.y = 0;
+	// first find any tile in first and second chunk
+	for (int y = 0; y < m_YBounds; y++)
+	{
+		for (int x = 0; x < m_XBounds; x++)
+		{
+			// check that the item is also a floor tile so that the algorithm works
+			if (entireMap[y].index[x].chunkNum == firstChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
+			{
+				closestTileIndexFromFirstToSecond.x = x;
+				closestTileIndexFromFirstToSecond.y = y;
+			}
+			else if (entireMap[y].index[x].chunkNum == secondChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
+			{
+				closestTileIndexFromSecondToFirst.x = x;
+				closestTileIndexFromSecondToFirst.y = y;
+			}
+		}
+	}
+
+	// second, go through every tile until closest pair has been found
+	/*for (int y = 0; y < m_YBounds; y++)
+	{
+		for (int x = 0; x < m_XBounds; x++)
+		{
+			if (entireMap[y].index[x].chunkNum == firstChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
+			{
+				int32 newManhattanHeuristic = (abs(x - closestTileIndexFromSecondToFirst.x)) + (abs(y - closestTileIndexFromSecondToFirst.y));
+				int32 oldManhattanHeuristic = (abs(closestTileIndexFromFirstToSecond.x - closestTileIndexFromSecondToFirst.x)) +
+					(abs(closestTileIndexFromFirstToSecond.y - closestTileIndexFromSecondToFirst.y));
+				if (newManhattanHeuristic < oldManhattanHeuristic)
+				{
+					closestTileIndexFromFirstToSecond.x = x;
+					closestTileIndexFromFirstToSecond.y = y;
+				}
+			}
+			else if (entireMap[y].index[x].chunkNum == secondChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
+			{
+				int32 newManhattanHeuristic = (abs(x - closestTileIndexFromFirstToSecond.x)) + (abs(y - closestTileIndexFromFirstToSecond.y));
+				int32 oldManhattanHeuristic = (abs(closestTileIndexFromSecondToFirst.x - closestTileIndexFromFirstToSecond.x)) +
+					(abs(closestTileIndexFromSecondToFirst.y - closestTileIndexFromFirstToSecond.y));
+				if (newManhattanHeuristic < oldManhattanHeuristic)
+				{
+					closestTileIndexFromSecondToFirst.x = x;
+					closestTileIndexFromSecondToFirst.y = y;
+				}
+			}
+		}
+	}*/
+
+	// finally construct a new path between these two tiles using best first path construction
+	TArray<FRow> newMap = entireMap;
+
+	newMap = BestFirstPathConstruction(closestTileIndexFromFirstToSecond, closestTileIndexFromSecondToFirst, entireMap, m_XBounds, m_YBounds);
+
+	return newMap;
 }
 
 TArray<FRow> MapGenerator::ConcatenateChunksIntoMap()
@@ -646,21 +909,24 @@ TArray<FRow> MapGenerator::ConcatenateChunksIntoMap()
 			{
 				for (int x = 0; x < largestXBounds; x++)
 				{
+					Tile newTile;
+					newTile.chunkNum = (chunkY * m_NumXChunks) + chunkX;
 					if (y < m_Chunks[chunkY].chunks[chunkX].yBound)
 					{
 						if (x < m_Chunks[chunkY].chunks[chunkX].xBound)
 						{
-							newRow.index.Add(m_Chunks[chunkY].chunks[chunkX].chunkMap[y].index[x]);
+							newTile.property = m_Chunks[chunkY].chunks[chunkX].chunkMap[y].index[x].property;
 						}
 						else
 						{
-							newRow.index.Add(Tile::NoTile);
+							newTile.property = TileProp::NoTile;
 						}
 					}
 					else
 					{
-						newRow.index.Add(Tile::NoTile);
+						newTile.property = TileProp::NoTile;
 					}
+					newRow.index.Add(newTile);
 				}
 
 			}
