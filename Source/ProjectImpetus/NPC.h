@@ -12,15 +12,29 @@
 #include "EmotionBrain.h"
 #include "NPC.generated.h"
 
+UENUM()
+enum CharacterType {
+	ResearcherCharacter,
+	AgentCharacter,
+	VolunteerCharacter,
+	OtherCharacter,
+};
+
+UENUM()
+enum AlertLevel {
+	Low		UMETA(DisplayName = "Low"),
+	Medium	UMETA(DisplayName = "Medium"),
+	High	UMETA(DisplayName = "High"),
+};
 
 UENUM()
 enum Directive
 {
-	MoveHere	UMETA(DisplayName = "MoveHere"),
-	FollowThis      UMETA(DisplayName = "FollowThis"),
+	MoveHere	 UMETA(DisplayName = "MoveHere"),
+	FollowThis   UMETA(DisplayName = "FollowThis"),
 	AttackThis   UMETA(DisplayName = "AttackThis"),
-	InteractThis   UMETA(DisplayName = "InteractThis"),
-	DoNothing   UMETA(DisplayName = "DoNothing"),
+	InteractThis UMETA(DisplayName = "InteractThis"),
+	DoNothing    UMETA(DisplayName = "DoNothing"),
 };
 
 
@@ -74,6 +88,8 @@ public:
 		bool m_Blind{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 		bool m_IsSeen{ false };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CharacterType)
+		CharacterType m_CharacterType { CharacterType::OtherCharacter };
 
 protected:
 	// Called when the game starts or when spawned
@@ -127,6 +143,10 @@ private:
 	// acting
 
 	Action m_CurrentAction; // current action this NPC is performing
+
+	// NPCs current alert level (affected by processed sensory & memory functions)
+
+	AlertLevel m_Alertness{ AlertLevel::Low };
 
 
 	// brains
@@ -205,6 +225,8 @@ public:
 
 	void UpdateMemory(TArray<AActor*> actorsInView) { m_MemoryBrain->UpdateObjectsInMemory(actorsInView); } // call memory brain with new information
 
+	TArray<Quality> GetQualitiesFromMemory() { m_MemoryBrain->GetQualities(); }
+
 	// null state
 
 	State NULLState() {
@@ -217,6 +239,20 @@ public:
 	// Emotion functions
 
 	void SendMessageToEmotionBrain(TPair<Emotion, float> message);
+
+	// Planning functions
+
+	void CallSetGoal(State newGoal) { m_PlanningBrain->SetGoal(newGoal); }
+
+	// Goal creation getters
+
+	AlertLevel GetAlertness() { return m_Alertness; }
+
+	TArray<AActor*> GetCharactersInView() { return m_SensorBrain->GetAllObjectsWithinView(); }
+
+	ATile3D* CallFindClosestTile(FVector2D tileLoc) { return m_PlanningBrain->FindClosestTile(tileLoc); }
+
+	FVector2D CallGetLastSeenTileLocation();
 
 	// name generation & getter
 

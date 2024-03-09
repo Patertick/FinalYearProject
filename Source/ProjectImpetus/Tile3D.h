@@ -16,6 +16,18 @@ enum TileType
 	Hazard   UMETA(DisplayName = "Hazard on this tile"),
 };
 
+UENUM()
+enum FloorType
+{
+	HallwayFloor,
+	BreakRoomFloor,
+	MeetingRoomFloor,
+	ReceptionFloor,
+	OfficeFloor,
+	CellFloor,
+	ResearchRoomFloor,
+	NotAFloor,
+};
 
 
 static const float KTILESIZE{ 100.0f };
@@ -33,6 +45,8 @@ public:
 		UStaticMeshComponent* m_Mesh { nullptr };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 		bool m_IsSeen{ false };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FloorProperties)
+		FloorType m_FloorType { FloorType::NotAFloor };
 
 	
 

@@ -55,8 +55,10 @@ void UMemoryBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 
 void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 {
+	int32 order{ -1 };
 	for (AActor* actor : actorsInView)
 	{
+		order++;
 		bool newActor{ false };
 		// first check to see if this actor already has a snapshot
 		for (int i = 0; i < m_ObjectsInMemory.Num(); i++)
@@ -65,6 +67,7 @@ void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 			{
 				// this actor is in the memory array, update the snapshot
 				m_ObjectsInMemory[i].location = actor->GetActorLocation(); // copy the location
+				m_ObjectsInMemory[i].lastSeenOrder = order;
 				newActor = true; 
 
 				// actor is known, if this actor is an NPC, reduce fear response
@@ -110,6 +113,8 @@ void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 			ActorSnapShot newSnapshot;
 			newSnapshot.actorName = actor->GetName();
 			newSnapshot.location = actor->GetActorLocation();
+			newSnapshot.lastSeenOrder = order;
+			newSnapshot.objectDesignation = FindObjectType(actor);
 			m_ObjectsInMemory.Add(newSnapshot);
 
 			// actor is not known if this actor is an NPC, add to fear response given that it doesn't contradict qualities
@@ -309,4 +314,38 @@ bool UMemoryBrain::DoesQualityContradict(Quality first, Quality second)
 	default:
 		return true;
 	}
+}
+
+ObjectType UMemoryBrain::FindObjectType(AActor* newActor)
+{
+	if (Cast<ANPC>(newActor) != nullptr) return ObjectType::Character;
+	if (Cast<ATile3D>(newActor) != nullptr) return ObjectType::Tile;
+	if (Cast<AInteractable>(newActor) != nullptr) return ObjectType::Interactable;
+
+	return ObjectType::NotAnObject;
+}
+
+FVector2D UMemoryBrain::GetLastSeenTileLocation()
+{
+	// find last seen tile
+	FVector lastSeenTileLocation{ NULL };
+	int32 lastSeenTileOrder{ -1 };
+	for (ActorSnapShot snapshot : m_ObjectsInMemory)
+	{
+		if (snapshot.objectDesignation == ObjectType::Tile)
+		{
+			if (snapshot.lastSeenOrder > lastSeenTileOrder)
+			{
+				lastSeenTileLocation = snapshot.location;
+				lastSeenTileOrder = snapshot.lastSeenOrder;
+			}
+		}
+	}
+
+	if (lastSeenTileOrder < 0) return FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y }; // for rare situations were no tiles exist in memory
+																												   // simply return this actors location
+
+	// return this tiles location in a 2D vector
+
+	return FVector2D{ lastSeenTileLocation.X, lastSeenTileLocation.Y };
 }

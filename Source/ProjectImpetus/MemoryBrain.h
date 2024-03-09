@@ -6,10 +6,20 @@
 #include "Components/ActorComponent.h"
 #include "MemoryBrain.generated.h"
 
+UENUM()
+enum ObjectType {
+	Character,
+	Interactable,
+	Tile,
+	NotAnObject,
+};
+
 struct ActorSnapShot {
 	// data
 	FVector location;
 	FString actorName; // use this to cross reference for updates
+	int32 lastSeenOrder{ 0 }; // 0 means this snapshot is the latest, m_ObjectsInMemory.Num() - 1 would be the oldest snapshot
+	ObjectType objectDesignation;
 };
 
 UENUM()
@@ -66,6 +76,10 @@ public:
 
 	Quality GenerateRandomQuality();
 	bool DoesQualityContradict(Quality first, Quality second);
+
+	FVector2D GetLastSeenTileLocation();
+
+	ObjectType FindObjectType(AActor* newActor);
 
 
 	UFUNCTION(BlueprintCallable, Category = Qualities)

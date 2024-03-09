@@ -53,6 +53,9 @@ enum ActionState
 {
 	Attacking,
 	Interacting,
+	Searching,
+	Following,
+	MovingToLocation,
 	DoingNothing,
 };
 
@@ -180,6 +183,8 @@ private:
 
 	TArray<State> m_GoalStates; // possible states that apply to our goal
 
+	State m_AutonomousGoal; // goal creator sets this, when NPC is of right mind and the directive is set, this is overridden
+
 	TArray<State> m_PossibleStates; // all possible states for this NPC
 
 	TArray<Action> m_Actions; // collection of possible actions
@@ -215,7 +220,7 @@ public:
 	Path FindAStarPath(ATile3D* startTile, ATile3D* endTile);
 	bool InList(const TArray<FNode>& list, ATile3D* tile);
 	int FindRemoveIndex(const TArray<FNode>& list, FNode nodeToRemove);
-	FVector2D InterpolatePath(FVector2D startPoint, FVector2D endPoint, FVector2D currentLocation);
+	//FVector2D InterpolatePath(FVector2D startPoint, FVector2D endPoint, FVector2D currentLocation);
 
 	// get initial state and set initial state
 
@@ -224,6 +229,10 @@ public:
 		m_InitialState.actionState = newActionState;
 		m_InitialState.tile = newTile;
 	}
+
+	// goal creation functions
+
+	void SetGoal(State newGoal) { m_AutonomousGoal = newGoal; }
 
 
 
