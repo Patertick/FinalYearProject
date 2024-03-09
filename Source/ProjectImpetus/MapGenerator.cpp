@@ -494,7 +494,7 @@ void MapGenerator::RefineMap()
 
 		// final touches
 		m_Map = FinalRefinement(m_Map, m_XBounds, m_YBounds);
-		m_Map = FinalRefinement(m_Map, m_XBounds, m_YBounds); // run again to get rid of artefacts
+		m_Map = FinalRefinement(m_Map, m_XBounds, m_YBounds, true); // run again to get rid of artefacts
 		m_MapGenerated = true;
 
 	}
@@ -637,7 +637,7 @@ FChunk MapGenerator::RefineChunk(const FChunk& tileMap)
 	return generatedMap;
 }
 
-TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds)
+TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds, bool finalPass)
 {
 	TArray<FRow> newMap = tileMap;
 	// after map is done, replace all wall tiles not adjacent to a none tile with floor tiles
@@ -696,7 +696,7 @@ TArray<FRow> MapGenerator::FinalRefinement(const TArray<FRow>& tileMap, int32 xB
 					}
 				}
 
-				if (isEdge)
+				if (isEdge && finalPass)
 				{
 					newMap[y].index[x].property = TileProp::WallTile;
 				}

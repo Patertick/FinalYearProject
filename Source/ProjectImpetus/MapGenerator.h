@@ -114,7 +114,7 @@ public:
 
 	TArray<FRow> ConstructPath(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds); // pass in a map and a map with constructed paths will be output
 
-	TArray<FRow> FinalRefinement(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds);
+	TArray<FRow> FinalRefinement(const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds, bool finalPass = false);
 
 	// if a path does not exist, by using best first searching, a direct path can be constructed to the goal
 	// after which the final connected map will be refined so that floor tiles aren't exposed and wall tiles aren't redundant
