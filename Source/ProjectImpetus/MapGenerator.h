@@ -18,8 +18,20 @@ enum ListType {
 	None,
 };
 
+UENUM()
+enum Room {
+	BreakRoom UMETA(DisplayName = "Break Room"),
+	Reception UMETA(DisplayName = "Reception"),
+	Office UMETA(DisplayName = "Office"),
+	MeetingRoom UMETA(DisplayName = "Meeting Room"),
+	ResearchRoom UMETA(DisplayName = "Research Room"),
+	Cell UMETA(DisplayName = "Cell"),
+	Hallway UMETA(DisplayName = "Hallway"),
+};
+
 struct Tile {
-	TileProp property;
+	TileProp property; 
+	Room roomType{ Room::Hallway };
 	ListType list{ ListType::None };
 	int32 chunkNum{ -1 };
 };
@@ -44,7 +56,7 @@ struct FChunk {
 	int32 xBound{ 0 };
 	int32 yBound{ 0 };
 	int32 chunkNum{ -1 };
-
+	Room chunkType{ Hallway };
 	bool isPaired{ false };
 };
 
@@ -85,9 +97,13 @@ private:
 
 	bool m_MapGenerated{ false };
 
+	const int32 KNUMOFROOMS{ 7 };
+
 public:
 	MapGenerator();
 	~MapGenerator();
+
+	Room GenerateRandomRoomType();
 
 	float GetMapTraversability(const TArray<FRow>& tileMap);
 	bool CanTraverseBreadthFirstSearch(FIndex first, FIndex second, const TArray<FRow>& tileMap);
@@ -125,7 +141,30 @@ public:
 			{
 				if (m_Map[y].index[x].property == TileProp::FloorTile)
 				{
-					mapCol = mapCol + "F";
+					switch (m_Map[y].index[x].roomType)
+					{
+					case Room::Hallway:
+						mapCol = mapCol + "F"; // hallway tile
+						break;
+					case Room::BreakRoom:
+						mapCol = mapCol + "B"; // break room tile
+						break;
+					case Room::Reception:
+						mapCol = mapCol + "S"; // reception tile
+						break;
+					case Room::MeetingRoom:
+						mapCol = mapCol + "M"; // meeting room tile
+						break;
+					case Room::Office:
+						mapCol = mapCol + "O"; // office tile
+						break;
+					case Room::ResearchRoom:
+						mapCol = mapCol + "R"; // research room tile
+						break;
+					case Room::Cell:
+						mapCol = mapCol + "C"; // cell tile
+						break;
+					}
 				}
 				else if (m_Map[y].index[x].property == TileProp::WallTile)
 				{

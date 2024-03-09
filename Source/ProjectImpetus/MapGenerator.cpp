@@ -7,7 +7,7 @@
 MapGenerator::MapGenerator()
 {
 	// randomize number of chunks
-	m_NumXChunks = FMath::RandRange(2, 5);
+	m_NumXChunks = FMath::RandRange(3, 5);
 	m_NumYChunks = FMath::RandRange(2, 5);
 
 	for (int chunkY = 0; chunkY < m_NumYChunks; chunkY++)
@@ -15,7 +15,9 @@ MapGenerator::MapGenerator()
 		FChunkRow newChunkRow;
 		for (int chunkX = 0; chunkX < m_NumXChunks; chunkX++)
 		{
+			// for each new chunk, randomise the room type, ensure reception, break room & meeting room cannot have duplicates
 			FChunk newChunk;
+			newChunk.chunkType = GenerateRandomRoomType();
 			newChunk.chunkNum = (chunkY * m_NumXChunks) + chunkX;
 			// randomize bounds
 			m_XBounds = FMath::RandRange(10, 20);
@@ -64,6 +66,107 @@ MapGenerator::MapGenerator()
 
 MapGenerator::~MapGenerator()
 {
+}
+
+Room MapGenerator::GenerateRandomRoomType()
+{
+	// check chunks for reception, meeting room & break room, ensure no duplicates
+	bool hasReception{ false }, hasMeetingRoom{ false }, hasBreakRoom{ false }, hasOffice{ false }, hasResearchRoom{ false },
+		hasCell{ false }, allRoomsSpawned{ false };
+
+	for (int y = 0; y < m_Chunks.Num(); y++)
+	{
+		for (int x = 0; x < m_Chunks[y].chunks.Num(); x++)
+		{
+			if (m_Chunks[y].chunks[x].chunkType == Room::Reception)
+			{
+				hasReception = true;
+			}
+			else if (m_Chunks[y].chunks[x].chunkType == Room::MeetingRoom)
+			{
+				hasMeetingRoom = true;
+			}
+			else if (m_Chunks[y].chunks[x].chunkType == Room::BreakRoom)
+			{
+				hasBreakRoom = true;
+			}
+			else if (m_Chunks[y].chunks[x].chunkType == Room::Office)
+			{
+				hasOffice = true;
+			}
+			else if (m_Chunks[y].chunks[x].chunkType == Room::ResearchRoom)
+			{
+				hasResearchRoom = true;
+			}
+			else if (m_Chunks[y].chunks[x].chunkType == Room::Cell)
+			{
+				hasCell = true;
+			}
+		}
+	}
+	// if all rooms exist, go with random room from duplicate rooms (office, research room, cell etc.)
+	allRoomsSpawned = hasReception && hasMeetingRoom && hasBreakRoom && hasOffice && hasResearchRoom && hasCell;
+
+	bool validType{ false };
+
+	Room roomType;
+
+	while (!validType)
+	{
+		int32 randomRoomType = FMath::RandRange(0, KNUMOFROOMS - 2);
+
+		switch (randomRoomType)
+		{
+		case 0:
+			if (hasReception) continue;
+			else {
+				roomType = Room::Reception;
+				validType = true;
+			}
+			break;
+		case 1:
+			if (hasMeetingRoom) continue;
+			else {
+				roomType = Room::MeetingRoom;
+				validType = true;
+			}
+			break;
+		case 2:
+			if (hasBreakRoom) continue;
+			else {
+				roomType = Room::BreakRoom;
+				validType = true;
+			}
+			break;
+		case 3:
+			if (hasResearchRoom && !allRoomsSpawned) continue;
+			else {
+				roomType = Room::ResearchRoom;
+				validType = true;
+			}
+			break;
+		case 4:
+			if (hasCell && !allRoomsSpawned) continue;
+			else {
+				roomType = Room::Cell;
+				validType = true;
+			}
+			break;
+		case 5:
+			if (hasOffice && !allRoomsSpawned) continue;
+			else {
+				roomType = Room::Office;
+				validType = true;
+			}
+			break;
+		default:
+			roomType = Room::Hallway;
+			validType = true;
+			break;
+		}
+	}
+
+	return roomType;
 }
 
 float MapGenerator::GetMapTraversability(const TArray<FRow>& tileMap)
@@ -916,15 +1019,18 @@ TArray<FRow> MapGenerator::ConcatenateChunksIntoMap()
 						if (x < m_Chunks[chunkY].chunks[chunkX].xBound)
 						{
 							newTile.property = m_Chunks[chunkY].chunks[chunkX].chunkMap[y].index[x].property;
+							newTile.roomType = m_Chunks[chunkY].chunks[chunkX].chunkType;
 						}
 						else
 						{
 							newTile.property = TileProp::NoTile;
+							newTile.roomType = Room::Hallway;
 						}
 					}
 					else
 					{
 						newTile.property = TileProp::NoTile;
+						newTile.roomType = Room::Hallway;
 					}
 					newRow.index.Add(newTile);
 				}
