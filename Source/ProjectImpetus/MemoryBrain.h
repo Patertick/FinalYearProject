@@ -20,6 +20,7 @@ struct ActorSnapShot {
 	FString actorName; // use this to cross reference for updates
 	int32 lastSeenOrder{ 0 }; // 0 means this snapshot is the latest, m_ObjectsInMemory.Num() - 1 would be the oldest snapshot
 	ObjectType objectDesignation;
+	AActor* objectRef{ nullptr };
 };
 
 UENUM()
@@ -80,6 +81,8 @@ public:
 	FVector2D GetLastSeenTileLocation();
 
 	ObjectType FindObjectType(AActor* newActor);
+
+	TArray<ActorSnapShot> GetObjectsInMemory() { return m_ObjectsInMemory; }
 
 
 	UFUNCTION(BlueprintCallable, Category = Qualities)

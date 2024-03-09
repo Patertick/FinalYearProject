@@ -254,6 +254,8 @@ public:
 
 	FVector2D CallGetLastSeenTileLocation();
 
+	TArray<ActorSnapShot> GetObjectsFromMemory() { return m_MemoryBrain->GetObjectsInMemory(); }
+
 	// name generation & getter
 
 	void GenerateName();

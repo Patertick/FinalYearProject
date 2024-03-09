@@ -56,6 +56,7 @@ enum ActionState
 	Searching,
 	Following,
 	MovingToLocation,
+	RunningAway,
 	DoingNothing,
 };
 

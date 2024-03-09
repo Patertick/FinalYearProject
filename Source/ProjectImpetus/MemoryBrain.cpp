@@ -115,6 +115,7 @@ void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 			newSnapshot.location = actor->GetActorLocation();
 			newSnapshot.lastSeenOrder = order;
 			newSnapshot.objectDesignation = FindObjectType(actor);
+			newSnapshot.objectRef = actor;
 			m_ObjectsInMemory.Add(newSnapshot);
 
 			// actor is not known if this actor is an NPC, add to fear response given that it doesn't contradict qualities

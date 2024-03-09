@@ -467,6 +467,10 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 				m_NPCRef->SetAction(action);
 			}
 		}
+		else
+		{
+			// search for actions to get to autonomous goal state from initial state
+		}
 	}
 	else
 	{
