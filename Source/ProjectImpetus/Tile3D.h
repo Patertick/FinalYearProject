@@ -19,14 +19,14 @@ enum TileType
 UENUM()
 enum FloorType
 {
-	HallwayFloor,
-	BreakRoomFloor,
-	MeetingRoomFloor,
-	ReceptionFloor,
-	OfficeFloor,
-	CellFloor,
-	ResearchRoomFloor,
-	NotAFloor,
+	HallwayFloor UMETA(DisplayName = "Hallway floor tile"),
+	BreakRoomFloor UMETA(DisplayName = "Break Room floor tile"),
+	MeetingRoomFloor UMETA(DisplayName = "Meeting Room floor tile"),
+	ReceptionFloor UMETA(DisplayName = "Reception floor tile"),
+	OfficeFloor UMETA(DisplayName = "Office floor tile"),
+	CellFloor UMETA(DisplayName = "Cell floor tile"),
+	ResearchRoomFloor UMETA(DisplayName = "Research Room floor tile"),
+	NotAFloor UMETA(DisplayName = "Not a floor tile"),
 };
 
 
@@ -46,7 +46,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 		bool m_IsSeen{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FloorProperties)
-		FloorType m_FloorType { FloorType::NotAFloor };
+		TEnumAsByte<FloorType> m_FloorType { FloorType::NotAFloor };
 
 	
 

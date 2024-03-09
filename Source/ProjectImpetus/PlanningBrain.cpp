@@ -103,6 +103,8 @@ void UPlanningBrain::BeginPlay()
 	}
 
 	//m_InitialState.actionState = ActionState::DoingNothing;
+
+	m_AutonomousGoal.actionState = ActionState::DoingNothing;
 	
 }
 
@@ -469,7 +471,199 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		}
 		else
 		{
+
+			if (m_AutonomousGoal.tile == nullptr) return;
 			// search for actions to get to autonomous goal state from initial state
+
+			// find if this action is simply moving to a location
+
+			if (m_AutonomousGoal.actionState == ActionState::Following || m_AutonomousGoal.actionState == ActionState::MovingToLocation || 
+				m_AutonomousGoal.actionState == ActionState::RunningAway || m_AutonomousGoal.actionState == ActionState::Searching)
+			{
+				// simply find the path to this location and create actions to reach this location
+				// empty actions queue
+				m_ActionQueue.Empty();
+
+
+				Path newPath = FindAStarPath(m_InitialState.tile, m_AutonomousGoal.tile);
+
+				if (newPath.totalCost < 0)
+				{
+					// try again
+					return;
+				}
+
+				// find actions that follow path
+
+				for (int i = 0; i < newPath.locations.Num() - 1; i++)
+				{
+					// for each location
+					// create the action that goes from start location to this new location
+					Action newAction;
+					newAction.actionType = Function::MoveFunction;
+					newAction.startingState.actionState = ActionState::DoingNothing;
+					newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+					newAction.endState.actionState = ActionState::DoingNothing;
+					newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+					// add action to queue
+					m_ActionQueue.InsertItem(newAction);
+
+				}
+			}
+			else if (m_AutonomousGoal.actionState == ActionState::Attacking)
+			{
+				// if within range of the goal tile, simply create attacking action at goal tile
+				// if not, find path to closest tile within range of goal tile
+				// then create attack actions
+				// empty action queue
+
+				m_ActionQueue.Empty();
+
+				// if goal state is in range from initial state, add attack to action queue
+
+				if (IsWithinAttackRange(m_InitialState.tile->GetActorLocation(), m_AutonomousGoal.tile->GetActorLocation()))
+				{
+					m_ActionQueue.InsertItems(CreateAttackActions(6, m_AutonomousGoal, m_InitialState.tile));
+				}
+				else
+				{
+					// otherwise find A* path to a tile within range, add these moves to action queue then an attack
+
+					// first find all tiles in range
+
+					ATile3D* closestTile = nullptr;
+
+					for (ATile3D* tile : m_MapData)
+					{
+						if (IsWithinAttackRange(tile->GetActorLocation(), m_AutonomousGoal.tile->GetActorLocation()) && tile->GetType() == TileType::None)
+						{
+
+							// then find the closest tile to starting location
+							if (closestTile == nullptr)
+							{
+								closestTile = tile;
+							}
+							else
+							{
+								FVector2D goalLocation = FVector2D{ m_InitialState.tile->GetActorLocation().X, m_InitialState.tile->GetActorLocation().Y };
+								FVector2D closestTileLocation = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
+								FVector2D currentTileLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
+								if (FVector2D::Distance(closestTileLocation, goalLocation) > FVector2D::Distance(currentTileLocation, goalLocation))
+								{
+									closestTile = tile;
+								}
+							}
+						}
+					}
+
+					// pathfind to this tile
+
+					Path newPath = FindAStarPath(m_InitialState.tile, closestTile);
+
+					if (newPath.totalCost < 0)
+					{
+						// try again
+						return;
+					}
+
+					// add subsequent move actions to action queue
+
+					Action newAction;
+					newAction.endState.tile = nullptr;
+					for (int i = 0; i < newPath.locations.Num() - 1; i++)
+					{
+						// for each location
+						// create the action that goes from start location to this new location
+						newAction.actionType = Function::MoveFunction;
+						newAction.startingState.actionState = ActionState::DoingNothing;
+						newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+						newAction.endState.actionState = ActionState::DoingNothing;
+						newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+						// add action to queue
+						m_ActionQueue.InsertItem(newAction);
+
+					}
+
+					// add attack action to queue
+					if (newAction.endState.tile == nullptr) return;
+					m_ActionQueue.InsertItems(CreateAttackActions(6, m_AutonomousGoal, newAction.endState.tile));
+
+
+				}
+
+			}
+			else if (m_AutonomousGoal.actionState == ActionState::Interacting)
+			{
+				// find a tile adjacent to the goal tile, if not on a tile adjacent already
+				// path to this tile then send interact action to queue
+				m_ActionQueue.Empty();
+
+				if (IsConnectedTile(m_AutonomousGoal.tile, m_AutonomousGoal.tile))
+				{
+					Action newAction;
+					newAction.actionType = Function::InteractFunction;
+					newAction.startingState.actionState = ActionState::Interacting;
+					newAction.startingState.tile = m_InitialState.tile;
+					newAction.endState.actionState = ActionState::Interacting;
+					newAction.endState.tile = m_AutonomousGoal.tile;
+					m_ActionQueue.InsertItem(newAction);
+				}
+				else
+				{
+					ATile3D* closestTile = nullptr;
+					for (ATile3D* tile : m_MapData)
+					{
+						// instead of finding tiles in range, find all tiles connected to goal tile
+						if (IsConnectedTile(tile, m_AutonomousGoal.tile) && tile->GetType() == TileType::None)
+						{
+							if (closestTile == nullptr)
+							{
+								closestTile = tile;
+							}
+							else
+							{
+								FVector2D goalLocation = FVector2D{ m_InitialState.tile->GetActorLocation().X, m_InitialState.tile->GetActorLocation().Y };
+								FVector2D closestTileLocation = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
+								FVector2D currentTileLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
+								if (FVector2D::Distance(closestTileLocation, goalLocation) > FVector2D::Distance(currentTileLocation, goalLocation))
+								{
+									closestTile = tile;
+								}
+							}
+						}
+					}
+
+					Path newPath = FindAStarPath(m_InitialState.tile, closestTile);
+
+					if (newPath.totalCost < 0)
+					{
+						// try again
+						return;
+					}
+
+					Action newAction;
+
+					for (int i = 0; i < newPath.locations.Num() - 1; i++)
+					{
+						// for each location
+						// create the action that goes from start location to this new location
+						newAction.actionType = Function::MoveFunction;
+						newAction.startingState.actionState = ActionState::DoingNothing;
+						newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+						newAction.endState.actionState = ActionState::DoingNothing;
+						newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+						// add action to queue
+						m_ActionQueue.InsertItem(newAction);
+
+					}
+					newAction.actionType = Function::InteractFunction;
+					newAction.startingState.actionState = ActionState::Interacting;
+					newAction.startingState.tile = newAction.endState.tile; // use last end tile as new starting point for action
+					newAction.endState.actionState = ActionState::Interacting;
+					newAction.endState.tile = m_AutonomousGoal.tile;
+					m_ActionQueue.InsertItem(newAction);
+				}
+			}
 		}
 	}
 	else

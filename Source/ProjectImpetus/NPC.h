@@ -14,10 +14,10 @@
 
 UENUM()
 enum CharacterType {
-	ResearcherCharacter,
-	AgentCharacter,
-	VolunteerCharacter,
-	OtherCharacter,
+	ResearcherCharacter		UMETA(DisplayName = "Researcher"),
+	AgentCharacter			UMETA(DisplayName = "Agent"),
+	VolunteerCharacter		UMETA(DisplayName = "Volunteer"),
+	OtherCharacter			UMETA(DisplayName = "Other"),
 };
 
 UENUM()
@@ -89,7 +89,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 		bool m_IsSeen{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CharacterType)
-		CharacterType m_CharacterType { CharacterType::OtherCharacter };
+		TEnumAsByte<CharacterType> m_CharacterType { CharacterType::OtherCharacter };
 
 protected:
 	// Called when the game starts or when spawned
@@ -225,7 +225,7 @@ public:
 
 	void UpdateMemory(TArray<AActor*> actorsInView) { m_MemoryBrain->UpdateObjectsInMemory(actorsInView); } // call memory brain with new information
 
-	TArray<Quality> GetQualitiesFromMemory() { m_MemoryBrain->GetQualities(); }
+	TArray<TEnumAsByte<Quality>> GetQualitiesFromMemory() { return m_MemoryBrain->GetQualities(); }
 
 	// null state
 
@@ -252,7 +252,7 @@ public:
 
 	ATile3D* CallFindClosestTile(FVector2D tileLoc) { return m_PlanningBrain->FindClosestTile(tileLoc); }
 
-	FVector2D CallGetLastSeenTileLocation();
+	FVector2D CallGetLastSeenTileLocation() { return m_MemoryBrain->GetLastSeenTileLocation(); }
 
 	TArray<ActorSnapShot> GetObjectsFromMemory() { return m_MemoryBrain->GetObjectsInMemory(); }
 
