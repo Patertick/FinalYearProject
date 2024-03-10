@@ -46,6 +46,7 @@ void ANPC::Tick(float DeltaTime)
 		return;
 	}
 
+	m_CurrentActionGoal = m_PlanningBrain->GetGoalState();
 
 	m_SensorBrain->SetFieldOfView(m_FieldOfView);
 	m_SensorBrain->SetMaxViewDistance(m_MaxViewDistance);

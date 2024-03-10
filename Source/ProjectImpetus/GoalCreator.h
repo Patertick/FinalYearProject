@@ -25,6 +25,16 @@ protected:
 
 	State m_GoalState;
 
+	// timer variables
+	const float KMAXHIGHTIMER{ 15.0f };
+	float m_HighPriorityTimer{ 0.0f };
+	const float KMAXMEDIUMTIMER{ 30.0f };
+	float m_MediumPriorityTimer{ 0.0f };
+	const float KMAXLOWTIMER{ 120.0f };
+	float m_LowPriorityTimer{ 0.0f };
+
+	bool m_HasTimerRanOut{ true };
+
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -33,5 +43,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SetNPC)
 		void SetNPC(ANPC* npc) { m_NPCRef = npc; }
+
+	
 		
 };

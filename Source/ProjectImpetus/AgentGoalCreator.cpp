@@ -316,19 +316,19 @@ State UAgentGoalCreator::CreateGoal()
 			// find random hallway tile and move towards tile
 			TArray<AActor*> Tiles;
 			UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
-
+			TArray<ATile3D*> possibleTiles;
 			for (AActor* tile : Tiles)
 			{
-				if (Cast<ATile3D>(tile)->m_FloorType != FloorType::HallwayFloor)
+				if (Cast<ATile3D>(tile)->m_FloorType == FloorType::HallwayFloor)
 				{
-					Tiles.Remove(tile); // delete tiles that aren't hallway tiles
+					possibleTiles.Add(Cast<ATile3D>(tile));
 				}
 			}
 
-			int32 randomTileIndex = FMath::RandRange(0, Tiles.Num() - 1);
+			int32 randomTileIndex = FMath::RandRange(0, possibleTiles.Num() - 1);
 
 			State newState;
-			newState.tile = Cast<ATile3D>(Tiles[randomTileIndex]);
+			newState.tile = Cast<ATile3D>(possibleTiles[randomTileIndex]);
 			newState.actionState = ActionState::MovingToLocation;
 			return newState;
 
@@ -339,19 +339,19 @@ State UAgentGoalCreator::CreateGoal()
 			// move towards random break room tile
 			TArray<AActor*> Tiles;
 			UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
-
+			TArray<ATile3D*> possibleTiles;
 			for (AActor* tile : Tiles)
 			{
-				if (Cast<ATile3D>(tile)->m_FloorType != FloorType::BreakRoomFloor)
+				if (Cast<ATile3D>(tile)->m_FloorType == FloorType::BreakRoomFloor)
 				{
-					Tiles.Remove(tile); // delete tiles that aren't hallway tiles
+					possibleTiles.Add(Cast<ATile3D>(tile));
 				}
 			}
 
-			int32 randomTileIndex = FMath::RandRange(0, Tiles.Num() - 1);
+			int32 randomTileIndex = FMath::RandRange(0, possibleTiles.Num() - 1);
 
 			State newState;
-			newState.tile = Cast<ATile3D>(Tiles[randomTileIndex]);
+			newState.tile = Cast<ATile3D>(possibleTiles[randomTileIndex]);
 			newState.actionState = ActionState::MovingToLocation;
 			return newState;
 		}

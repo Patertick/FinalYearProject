@@ -51,13 +51,13 @@ struct FNode {
 UENUM()
 enum ActionState
 {
-	Attacking,
-	Interacting,
-	Searching,
-	Following,
-	MovingToLocation,
-	RunningAway,
-	DoingNothing,
+	Attacking UMETA(DisplayName = "Attacking something"),
+	Interacting UMETA(DisplayName = "Interacting with something"),
+	Searching UMETA(DisplayName = "Searching for something"),
+	Following UMETA(DisplayName = "Following someone"),
+	MovingToLocation UMETA(DisplayName = "Moving to location"),
+	RunningAway UMETA(DisplayName = "Running away"),
+	DoingNothing UMETA(DisplayName = "Not doing anything"),
 };
 
 struct State {
@@ -235,7 +235,8 @@ public:
 
 	void SetGoal(State newGoal) { m_AutonomousGoal = newGoal; }
 
+	bool IsActionQueueEmpty() { return m_ActionQueue.IsEmpty(); }
 
-
-		
+	ActionState GetGoalState() { return m_AutonomousGoal.actionState; }
+	ATile3D* GetGoalTile() { return m_AutonomousGoal.tile; }
 };
