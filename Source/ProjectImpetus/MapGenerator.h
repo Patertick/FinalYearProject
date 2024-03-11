@@ -120,7 +120,7 @@ public:
 	// after which the final connected map will be refined so that floor tiles aren't exposed and wall tiles aren't redundant
 	TArray<FRow> BestFirstPathConstruction(FIndex start, FIndex target, const TArray<FRow>& tileMap, int32 xBounds, int32 yBounds);
 
-	TArray<FRow> ConnectChunks(const TArray<FRow>& entireMap, const FChunk& firstChunk, const FChunk& secondChunk);
+	TArray<FRow> ConnectChunks(const TArray<FRow>& entireMap, const int32& firstChunkNum, const int32& secondChunkNum);
 
 	TArray<FIndex> GetNeighbours(FIndex passedIndex);
 

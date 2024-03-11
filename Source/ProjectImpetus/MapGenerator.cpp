@@ -17,7 +17,6 @@ MapGenerator::MapGenerator()
 		{
 			// for each new chunk, randomise the room type, ensure reception, break room & meeting room cannot have duplicates
 			FChunk newChunk;
-			newChunk.chunkType = GenerateRandomRoomType();
 			newChunk.chunkNum = (chunkY * m_NumXChunks) + chunkX;
 			// randomize bounds
 			m_XBounds = FMath::RandRange(10, 20);
@@ -59,6 +58,16 @@ MapGenerator::MapGenerator()
 		}
 		m_Chunks.Add(newChunkRow);
 	}
+	for (int y = 0; y < m_NumYChunks; y++)
+	{
+		for (int x = 0; x < m_NumXChunks; x++)
+		{
+			// create type of room
+			m_Chunks[y].chunks[x].chunkType = GenerateRandomRoomType();
+		}
+	}
+
+	
 
 	
 
@@ -118,43 +127,43 @@ Room MapGenerator::GenerateRandomRoomType()
 		switch (randomRoomType)
 		{
 		case 0:
-			if (hasReception) continue;
-			else {
+			if (!hasReception)
+			{
 				roomType = Room::Reception;
 				validType = true;
 			}
 			break;
 		case 1:
-			if (hasMeetingRoom) continue;
-			else {
+			if (!hasMeetingRoom)
+			{
 				roomType = Room::MeetingRoom;
 				validType = true;
 			}
 			break;
 		case 2:
-			if (hasBreakRoom) continue;
-			else {
+			if (!hasBreakRoom)
+			{
 				roomType = Room::BreakRoom;
 				validType = true;
 			}
 			break;
 		case 3:
-			if (hasResearchRoom && !allRoomsSpawned) continue;
-			else {
+			if (!hasResearchRoom || allRoomsSpawned)
+			{
 				roomType = Room::ResearchRoom;
 				validType = true;
 			}
 			break;
 		case 4:
-			if (hasCell && !allRoomsSpawned) continue;
-			else {
+			if (!hasCell || allRoomsSpawned)
+			{
 				roomType = Room::Cell;
 				validType = true;
 			}
 			break;
 		case 5:
-			if (hasOffice && !allRoomsSpawned) continue;
-			else {
+			if (!hasOffice || allRoomsSpawned)
+			{
 				roomType = Room::Office;
 				validType = true;
 			}
@@ -332,47 +341,42 @@ bool MapGenerator::CanTraverseBestFirstSearch(FIndex first, FIndex second, const
 
 bool MapGenerator::AreAllChunksConnected()
 {
-	// get a random chunk, doesn't matter which
-	int32 randomChunkX = FMath::RandRange(0, m_NumXChunks - 1);
-	int32 randomChunkY = FMath::RandRange(0, m_NumYChunks - 1);
+	// get a random tile, doesn't matter which
 
-	// use this chunk to check against all other chunks
+	FIndex randomTile;
 
-	for (int y = 0; y < m_NumYChunks; y++)
+	for (int i = 0; i < m_YBounds; i++)
 	{
-		for (int x = 0; x < m_NumXChunks; x++)
+		for (int j = 0; j < m_XBounds; j++)
 		{
-			// pick random floor tile from each chunk
-			FIndex randomFloorTileFirst, randomFloorTileSecond;
-			bool isValid{ false };
-			while (!isValid)
+			if (m_Map[i].index[j].property == TileProp::FloorTile)
 			{
-				randomFloorTileFirst.x = FMath::RandRange(0, m_XBounds - 1);
-				randomFloorTileFirst.y = FMath::RandRange(0, m_YBounds - 1);
+				randomTile.x = j;
+				randomTile.y = i;
+				break;
+			}
+		}
+		if (randomTile.x >= 0) break;
+	}
+	if (randomTile.x < 0) return false;
 
-				if (m_Map[randomFloorTileFirst.y].index[randomFloorTileFirst.x].property == TileProp::FloorTile &&
-					m_Map[randomFloorTileFirst.y].index[randomFloorTileFirst.x].chunkNum == m_Chunks[randomChunkY].chunks[randomChunkX].chunkNum)
+	// use this tile to check against all other tiles
+	for (int i = 0; i < m_YBounds; i++)
+	{
+		for (int j = 0; j < m_XBounds; j++)
+		{
+			if (m_Map[i].index[j].property == TileProp::FloorTile)
+			{
+				FIndex first, second;
+				first.x = randomTile.x;
+				first.y = randomTile.y;
+				second.x = j;
+				second.y = i;
+				if (!CanTraverseBestFirstSearch(first, second, m_Map))
 				{
-					isValid = true;
+					return false;
 				}
 			}
-			isValid = false;
-			while (!isValid)
-			{
-				randomFloorTileSecond.x = FMath::RandRange(0, m_XBounds - 1);
-				randomFloorTileSecond.y = FMath::RandRange(0, m_YBounds - 1);
-
-				if (m_Map[randomFloorTileSecond.y].index[randomFloorTileSecond.x].property == TileProp::FloorTile &&
-					m_Map[randomFloorTileSecond.y].index[randomFloorTileSecond.x].chunkNum == m_Chunks[y].chunks[x].chunkNum)
-				{
-					isValid = true;
-				}
-			}
-			if (!CanTraverseBestFirstSearch(randomFloorTileFirst, randomFloorTileSecond, m_Map)) // find if traversable
-			{
-				return false; // if not, return false
-			}
-
 		}
 	}
 
@@ -480,7 +484,7 @@ void MapGenerator::RefineMap()
 			{
 				if (secondRandomXChunk >= 0 && secondRandomXChunk < m_NumXChunks && secondRandomYChunk >= 0 && secondRandomYChunk < m_NumYChunks)
 				{
-					m_Map = ConnectChunks(m_Map, m_Chunks[firstRandomYChunk].chunks[firstRandomXChunk], m_Chunks[secondRandomYChunk].chunks[secondRandomXChunk]);
+					m_Map = ConnectChunks(m_Map, m_Chunks[firstRandomYChunk].chunks[firstRandomXChunk].chunkNum, m_Chunks[secondRandomYChunk].chunks[secondRandomXChunk].chunkNum);
 
 					
 					m_Chunks[firstRandomYChunk].chunks[firstRandomXChunk].isPaired = true;
@@ -907,70 +911,44 @@ TArray<FRow> MapGenerator::BestFirstPathConstruction(FIndex start, FIndex target
 	
 }
 
-TArray<FRow> MapGenerator::ConnectChunks(const TArray<FRow>& entireMap, const FChunk& firstChunk, const FChunk& secondChunk)
+TArray<FRow> MapGenerator::ConnectChunks(const TArray<FRow>& entireMap, const int32& firstChunkNum, const int32& secondChunkNum)
 {
-	// find ideal tile from each chunk (tiles that are closest) in the entire map
+	// find any random tile from each chunk
 
+	FIndex firstChunkTile, secondChunkTile;
 
-	FIndex closestTileIndexFromFirstToSecond;
-	closestTileIndexFromFirstToSecond.x = 0;
-	closestTileIndexFromFirstToSecond.y = 0;
-	FIndex closestTileIndexFromSecondToFirst;
-	closestTileIndexFromSecondToFirst.x = 0;
-	closestTileIndexFromSecondToFirst.y = 0;
-	// first find any tile in first and second chunk
-	for (int y = 0; y < m_YBounds; y++)
+	bool isValid{ false };
+	while (!isValid)
 	{
-		for (int x = 0; x < m_XBounds; x++)
+		firstChunkTile.x = FMath::RandRange(0, m_XBounds - 1);
+		firstChunkTile.y = FMath::RandRange(0, m_YBounds - 1);
+
+		if (entireMap[firstChunkTile.y].index[firstChunkTile.x].property == TileProp::FloorTile &&
+			entireMap[firstChunkTile.y].index[firstChunkTile.x].chunkNum == firstChunkNum)
 		{
-			// check that the item is also a floor tile so that the algorithm works
-			if (entireMap[y].index[x].chunkNum == firstChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
-			{
-				closestTileIndexFromFirstToSecond.x = x;
-				closestTileIndexFromFirstToSecond.y = y;
-			}
-			else if (entireMap[y].index[x].chunkNum == secondChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
-			{
-				closestTileIndexFromSecondToFirst.x = x;
-				closestTileIndexFromSecondToFirst.y = y;
-			}
+			isValid = true;
 		}
+
+	}
+	isValid = false;
+	while (!isValid)
+	{
+		secondChunkTile.x = FMath::RandRange(0, m_XBounds - 1);
+		secondChunkTile.y = FMath::RandRange(0, m_YBounds - 1);
+
+		if (entireMap[secondChunkTile.y].index[secondChunkTile.x].property == TileProp::FloorTile &&
+			entireMap[secondChunkTile.y].index[secondChunkTile.x].chunkNum == secondChunkNum)
+		{
+			isValid = true;
+		}
+
 	}
 
-	// second, go through every tile until closest pair has been found
-	/*for (int y = 0; y < m_YBounds; y++)
-	{
-		for (int x = 0; x < m_XBounds; x++)
-		{
-			if (entireMap[y].index[x].chunkNum == firstChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
-			{
-				int32 newManhattanHeuristic = (abs(x - closestTileIndexFromSecondToFirst.x)) + (abs(y - closestTileIndexFromSecondToFirst.y));
-				int32 oldManhattanHeuristic = (abs(closestTileIndexFromFirstToSecond.x - closestTileIndexFromSecondToFirst.x)) +
-					(abs(closestTileIndexFromFirstToSecond.y - closestTileIndexFromSecondToFirst.y));
-				if (newManhattanHeuristic < oldManhattanHeuristic)
-				{
-					closestTileIndexFromFirstToSecond.x = x;
-					closestTileIndexFromFirstToSecond.y = y;
-				}
-			}
-			else if (entireMap[y].index[x].chunkNum == secondChunk.chunkNum && entireMap[y].index[x].property == TileProp::FloorTile)
-			{
-				int32 newManhattanHeuristic = (abs(x - closestTileIndexFromFirstToSecond.x)) + (abs(y - closestTileIndexFromFirstToSecond.y));
-				int32 oldManhattanHeuristic = (abs(closestTileIndexFromSecondToFirst.x - closestTileIndexFromFirstToSecond.x)) +
-					(abs(closestTileIndexFromSecondToFirst.y - closestTileIndexFromFirstToSecond.y));
-				if (newManhattanHeuristic < oldManhattanHeuristic)
-				{
-					closestTileIndexFromSecondToFirst.x = x;
-					closestTileIndexFromSecondToFirst.y = y;
-				}
-			}
-		}
-	}*/
 
 	// finally construct a new path between these two tiles using best first path construction
 	TArray<FRow> newMap = entireMap;
 
-	newMap = BestFirstPathConstruction(closestTileIndexFromFirstToSecond, closestTileIndexFromSecondToFirst, entireMap, m_XBounds, m_YBounds);
+	newMap = BestFirstPathConstruction(firstChunkTile, secondChunkTile, entireMap, m_XBounds, m_YBounds);
 
 	return newMap;
 }
@@ -1013,24 +991,26 @@ TArray<FRow> MapGenerator::ConcatenateChunksIntoMap()
 				for (int x = 0; x < largestXBounds; x++)
 				{
 					Tile newTile;
-					newTile.chunkNum = (chunkY * m_NumXChunks) + chunkX;
 					if (y < m_Chunks[chunkY].chunks[chunkX].yBound)
 					{
 						if (x < m_Chunks[chunkY].chunks[chunkX].xBound)
 						{
 							newTile.property = m_Chunks[chunkY].chunks[chunkX].chunkMap[y].index[x].property;
 							newTile.roomType = m_Chunks[chunkY].chunks[chunkX].chunkType;
+							newTile.chunkNum = m_Chunks[chunkY].chunks[chunkX].chunkNum;
 						}
 						else
 						{
 							newTile.property = TileProp::NoTile;
 							newTile.roomType = Room::Hallway;
+							newTile.chunkNum = m_Chunks[chunkY].chunks[chunkX].chunkNum;
 						}
 					}
 					else
 					{
 						newTile.property = TileProp::NoTile;
 						newTile.roomType = Room::Hallway;
+						newTile.chunkNum = m_Chunks[chunkY].chunks[chunkX].chunkNum;
 					}
 					newRow.index.Add(newTile);
 				}
