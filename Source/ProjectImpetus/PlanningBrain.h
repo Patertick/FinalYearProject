@@ -99,11 +99,14 @@ struct Action
 	State endState;
 	Function actionType;
 
+	FVector2D direction{ 0, 0 };
+
 	void operator=(Action other)
 	{
 		startingState = other.startingState;
 		endState = other.endState;
 		actionType = other.actionType;
+		direction = other.direction;
 	}
 };
 
@@ -231,7 +234,14 @@ public:
 		m_InitialState.tile = newTile;
 	}
 
+	// Action generation
+
+	FString GenerateRandomAction();
+
+
 	// goal creation functions
+
+
 
 	void SetGoal(State newGoal) { m_AutonomousGoal = newGoal; }
 

@@ -29,6 +29,13 @@ enum FloorType
 	NotAFloor UMETA(DisplayName = "Not a floor tile"),
 };
 
+struct ConnectedTile {
+	ATile3D* ref;
+	float xDir; // between -1 and 1 (-1 being left and 1 being right)
+	float yDir; // between -1 and 1 (-1 being up and 1 being down)
+	FString direction;
+};
+
 
 static const float KTILESIZE{ 100.0f };
 
@@ -57,7 +64,7 @@ protected:
 private:
 	const float KMAXTILEDISTANCE{ 150.0f };
 	TileType m_Type{ TileType::None };
-	TArray<ATile3D*> m_connectedTiles;
+	TArray<ConnectedTile> m_connectedTiles;
 	float m_Weight{ 1.0f };
 
 public:	
@@ -70,7 +77,7 @@ public:
 
 	TileType GetType() { return m_Type; }
 
-	TArray<ATile3D*> GetConnectedTiles() { return m_connectedTiles; }
+	TArray<ConnectedTile> GetConnectedTiles() { return m_connectedTiles; }
 
 	float GetWeight() { return m_Weight; }
 

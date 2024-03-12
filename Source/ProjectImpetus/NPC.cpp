@@ -21,6 +21,7 @@ void ANPC::BeginPlay()
 
 	// set current action to null
 	m_CurrentAction.actionType = Function::NullAction;
+	m_CurrentAction.direction = FVector2D{ 0, 0 };
 	State newState;
 	FVector2D npcLocation = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
 	newState.tile = m_PlanningBrain->FindClosestTile(npcLocation);
@@ -46,8 +47,6 @@ void ANPC::Tick(float DeltaTime)
 		return;
 	}
 
-	m_CurrentActionGoal = m_PlanningBrain->GetGoalState();
-
 	m_SensorBrain->SetFieldOfView(m_FieldOfView);
 	m_SensorBrain->SetMaxViewDistance(m_MaxViewDistance);
 
@@ -56,6 +55,8 @@ void ANPC::Tick(float DeltaTime)
 
 	CallAction(m_CurrentAction);
 
+	SetRotation();
+
 }
 
 // Called to bind functionality to input
@@ -63,6 +64,71 @@ void ANPC::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+}
+
+void ANPC::SetRotation()
+{
+	FVector newRotation;
+	newRotation.X = 0;
+	newRotation.Y = 0;
+
+
+	if (m_CurrentAction.direction.X < -0.5f)
+	{
+		if (m_CurrentAction.direction.Y < -0.5f)
+		{
+			// left up
+			newRotation.Z = 315.0f;
+		}
+		else if (m_CurrentAction.direction.Y > 0.5f)
+		{
+			// left down
+			newRotation.Z = 225.0f;
+		}
+		else
+		{
+			// left
+			newRotation.Z = 270.0f;
+		}
+	}
+	else if (m_CurrentAction.direction.X > 0.5f)
+	{
+		if (m_CurrentAction.direction.Y < -0.5f)
+		{
+			// right up
+			newRotation.Z = 45.0f;
+		}
+		else if (m_CurrentAction.direction.Y > 0.5f)
+		{
+			// right down
+			newRotation.Z = 135.0f;
+		}
+		else
+		{
+			// right
+			newRotation.Z = 90.0f;
+		}
+	}
+	else
+	{
+		if (m_CurrentAction.direction.Y < -0.5f)
+		{
+			// up
+			newRotation.Z = 0.0f;
+		}
+		else if (m_CurrentAction.direction.Y > 0.5f)
+		{
+			// down
+			newRotation.Z = 180.0f;
+		}
+		else
+		{
+			// no direction, default to 0
+			newRotation.Z = 0.0f;
+		}
+	}
+
+	SetActorRotation(FQuat::MakeFromEuler(newRotation));
 }
 
 //bool ANPC::Move(const Path &path, int32 &pointOnPath)
@@ -106,7 +172,8 @@ void ANPC::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 State ANPC::Move(State startState, State endState)
 {
 	// move between tiles
-	if (!startState.tile->GetConnectedTiles().Contains(endState.tile) || endState.tile->GetType() != TileType::None)
+
+	if (!m_PlanningBrain->IsConnectedTile(startState.tile, endState.tile) || endState.tile->GetType() != TileType::None)
 	{
 		State newState;
 		newState.tile = startState.tile;

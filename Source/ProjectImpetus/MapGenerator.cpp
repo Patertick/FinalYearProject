@@ -470,6 +470,7 @@ void MapGenerator::RefineMap()
 		
 		// construct paths between chunks by creating random pairs of chunks and running a path creation algorithm
 		bool pathsConnected{ false };
+		int32 count{ 0 };
 		do {
 			int32 firstRandomXChunk = FMath::RandRange(0, m_NumXChunks - 1);
 			int32 firstRandomYChunk = FMath::RandRange(0, m_NumYChunks - 1);
@@ -494,7 +495,8 @@ void MapGenerator::RefineMap()
 
 			// get random indices from every chunk and check if they can each traverse between each other
 			pathsConnected = AreAllChunksConnected();
-		} while (!pathsConnected);
+			count++; // time out
+		} while (!pathsConnected && count < 8000);
 
 		// final touches
 		m_Map = FinalRefinement(m_Map, m_XBounds, m_YBounds);

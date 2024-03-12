@@ -89,9 +89,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 		bool m_IsSeen{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CharacterType)
-		TEnumAsByte<CharacterType> m_CharacterType { CharacterType::OtherCharacter };
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Debug)
-		TEnumAsByte<ActionState> m_CurrentActionGoal{ ActionState::DoingNothing };
+		TEnumAsByte<CharacterType> m_CharacterType{ CharacterType::OtherCharacter };
 
 protected:
 	// Called when the game starts or when spawned
@@ -191,7 +189,7 @@ public:
 
 	// damage functions
 	UFUNCTION(BlueprintCallable, Category = Damage)
-		void DealDamage(float damage, AActor* damageInstigator) { 
+		void DealDamage(float damage, AActor* damageInstigator) {
 		m_Health -= damage;
 		m_AttackingEnemy = damageInstigator;
 	}
@@ -223,6 +221,9 @@ public:
 		return false;
 	}
 
+	void SetRotation();
+
+
 	// memory functions
 
 	void UpdateMemory(TArray<AActor*> actorsInView) { m_MemoryBrain->UpdateObjectsInMemory(actorsInView); } // call memory brain with new information
@@ -245,6 +246,8 @@ public:
 	// Planning functions
 
 	void CallSetGoal(State newGoal) { m_PlanningBrain->SetGoal(newGoal); }
+
+
 
 	// Goal creation getters
 
@@ -274,72 +277,12 @@ public:
 
 	FString CreateConnectorName(int32 numberOfPairs);
 
-	float GetPairingValidityFitness(char first, char second, char third, float &maxFitnessRef);
+	float GetPairingValidityFitness(char first, char second, char third, float& maxFitnessRef);
 
 	bool IsVowel(char character);
 
 	UFUNCTION(BlueprintCallable, Category = Name)
 		FString GetName() { return m_Name; }
-
-
-	UFUNCTION(BlueprintCallable, Category = Debug)
-		FString GetOutputForAction() {
-			FString output = "";
-			switch (m_PlanningBrain->GetGoalState())
-			{
-			case ActionState::Attacking:
-				output = output + "Attacking at ";
-				break;
-			case ActionState::Interacting:
-				output = output + "Interacting at ";
-				break;
-			case ActionState::Searching:
-				output = output + "Searching at ";
-				break;
-			case ActionState::Following:
-				output = output + "Following at ";
-				break;
-			case ActionState::MovingToLocation:
-				output = output + "Moving to ";
-				break;
-			case ActionState::RunningAway:
-				output = output + "Running to ";
-				break;
-			case ActionState::DoingNothing:
-			default:
-				output = output + "Doing nothing on ";
-				break;
-			}
-			switch (m_PlanningBrain->GetGoalTile()->m_FloorType)
-			{
-			case FloorType::BreakRoomFloor:
-				output = output + " Break room floor";
-				break;
-			case FloorType::CellFloor:
-				output = output + " Cell floor";
-				break;
-			case FloorType::HallwayFloor:
-				output = output + " Hallway floor";
-				break;
-			case FloorType::MeetingRoomFloor:
-				output = output + " Meeting room floor";
-				break;
-			case FloorType::ReceptionFloor:
-				output = output + " Reception floor";
-				break;
-			case FloorType::OfficeFloor:
-				output = output + " Office floor";
-				break;
-			case FloorType::ResearchRoomFloor:
-				output = output + " Research room floor";
-				break;
-			case FloorType::NotAFloor:
-			default:
-				output = output + " Not a floor?";
-				break;
-			}
-			return output;
-		}
 };
 
 

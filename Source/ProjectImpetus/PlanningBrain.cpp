@@ -50,14 +50,14 @@ void UPlanningBrain::BeginPlay()
 
 	for (State state : m_PossibleStates)
 	{
-		for (ATile3D* connectedTile : state.tile->GetConnectedTiles())
+		for (ConnectedTile connectedTile : state.tile->GetConnectedTiles())
 		{
 
 			// set possible move actions between connected tiles for each state
 			newAction.startingState = state;
 			// this state should already exist in possible states, but rather than waste time looking it up, simply set new state to equivalent state
 			newState.actionState = state.actionState;
-			newState.tile = connectedTile;
+			newState.tile = connectedTile.ref;
 			newAction.endState = newState;
 			newAction.actionType = Function::MoveFunction;
 
@@ -73,7 +73,7 @@ void UPlanningBrain::BeginPlay()
 			// end state is not where the NPC will be physically its just the state that the NPC is interacting with (as in whatever object is in that position)
 			newAction.startingState = state;
 			newState.actionState = ActionState::Interacting;
-			newState.tile = connectedTile;
+			newState.tile = connectedTile.ref;
 			newAction.endState = newState;
 			newAction.actionType = Function::InteractFunction;
 			if (newAction.startingState == newAction.endState)
@@ -471,198 +471,126 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		}
 		else
 		{
+			// generate random actions
 
-			if (m_AutonomousGoal.tile == nullptr) return;
-			// search for actions to get to autonomous goal state from initial state
+			int32 numOfActions = FMath::RandRange(0, 20);
 
-			// find if this action is simply moving to a location
-
-			if (m_AutonomousGoal.actionState == ActionState::Following || m_AutonomousGoal.actionState == ActionState::MovingToLocation || 
-				m_AutonomousGoal.actionState == ActionState::RunningAway || m_AutonomousGoal.actionState == ActionState::Searching)
+			for (int i = 0; i < numOfActions; i++)
 			{
-				// simply find the path to this location and create actions to reach this location
-				// empty actions queue
-				m_ActionQueue.Empty();
+				// generate random action (move, attack, interact and then random direction)
+				FString actionString = GenerateRandomAction();
 
-
-				Path newPath = FindAStarPath(m_InitialState.tile, m_AutonomousGoal.tile);
-
-				if (newPath.totalCost < 0)
+				if (actionString.GetCharArray()[0] == 'A')
 				{
-					// try again
-					return;
-				}
-
-				// find actions that follow path
-
-				for (int i = 0; i < newPath.locations.Num() - 1; i++)
-				{
-					// for each location
-					// create the action that goes from start location to this new location
-					Action newAction;
-					newAction.actionType = Function::MoveFunction;
-					newAction.startingState.actionState = ActionState::DoingNothing;
-					newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
-					newAction.endState.actionState = ActionState::DoingNothing;
-					newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
-					// add action to queue
-					m_ActionQueue.InsertItem(newAction);
-
-				}
-			}
-			else if (m_AutonomousGoal.actionState == ActionState::Attacking)
-			{
-				// if within range of the goal tile, simply create attacking action at goal tile
-				// if not, find path to closest tile within range of goal tile
-				// then create attack actions
-				// empty action queue
-
-				m_ActionQueue.Empty();
-
-				// if goal state is in range from initial state, add attack to action queue
-
-				if (IsWithinAttackRange(m_InitialState.tile->GetActorLocation(), m_AutonomousGoal.tile->GetActorLocation()))
-				{
-					m_ActionQueue.InsertItems(CreateAttackActions(6, m_AutonomousGoal, m_InitialState.tile));
-				}
-				else
-				{
-					// otherwise find A* path to a tile within range, add these moves to action queue then an attack
-
-					// first find all tiles in range
-
-					ATile3D* closestTile = nullptr;
-
-					for (ATile3D* tile : m_MapData)
+					ConnectedTile attackTile{ nullptr };
+					if (actionString.GetCharArray()[1] == 'n')
 					{
-						if (IsWithinAttackRange(tile->GetActorLocation(), m_AutonomousGoal.tile->GetActorLocation()) && tile->GetType() == TileType::None)
+						// no direction , do not find connected tiles
+						attackTile.ref = m_InitialState.tile;
+						attackTile.xDir = 0;
+						attackTile.yDir = 0;
+					}
+					{
+						TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+						for (ConnectedTile tile : connectedTiles)
 						{
-
-							// then find the closest tile to starting location
-							if (closestTile == nullptr)
+							if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
 							{
-								closestTile = tile;
-							}
-							else
-							{
-								FVector2D goalLocation = FVector2D{ m_InitialState.tile->GetActorLocation().X, m_InitialState.tile->GetActorLocation().Y };
-								FVector2D closestTileLocation = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
-								FVector2D currentTileLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
-								if (FVector2D::Distance(closestTileLocation, goalLocation) > FVector2D::Distance(currentTileLocation, goalLocation))
-								{
-									closestTile = tile;
-								}
+								// this is the direction we want
+								attackTile.ref = tile.ref;
+								attackTile.xDir = tile.xDir;
+								attackTile.yDir = tile.yDir;
+								break;
 							}
 						}
 					}
-
-					// pathfind to this tile
-
-					Path newPath = FindAStarPath(m_InitialState.tile, closestTile);
-
-					if (newPath.totalCost < 0)
+					if (attackTile.ref == nullptr) return;
+					else
 					{
-						// try again
-						return;
-					}
-
-					// add subsequent move actions to action queue
-
-					Action newAction;
-					newAction.endState.tile = nullptr;
-					for (int i = 0; i < newPath.locations.Num() - 1; i++)
-					{
-						// for each location
-						// create the action that goes from start location to this new location
-						newAction.actionType = Function::MoveFunction;
-						newAction.startingState.actionState = ActionState::DoingNothing;
-						newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
-						newAction.endState.actionState = ActionState::DoingNothing;
-						newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+						// send attack action to queue
+						Action newAction;
+						newAction.actionType = Function::AttackFunction;
+						newAction.startingState.actionState = ActionState::Attacking;
+						newAction.startingState.tile = m_InitialState.tile;
+						newAction.endState.actionState = ActionState::Attacking;
+						newAction.endState.tile = attackTile.ref;
+						newAction.direction = FVector2D{ attackTile.xDir, attackTile.yDir };
 						// add action to queue
 						m_ActionQueue.InsertItem(newAction);
-
 					}
-
-					// add attack action to queue
-					if (newAction.endState.tile == nullptr) return;
-					m_ActionQueue.InsertItems(CreateAttackActions(6, m_AutonomousGoal, newAction.endState.tile));
-
-
 				}
-
-			}
-			else if (m_AutonomousGoal.actionState == ActionState::Interacting)
-			{
-				// find a tile adjacent to the goal tile, if not on a tile adjacent already
-				// path to this tile then send interact action to queue
-				m_ActionQueue.Empty();
-
-				if (IsConnectedTile(m_AutonomousGoal.tile, m_AutonomousGoal.tile))
+				else if (actionString.GetCharArray()[0] == 'M')
 				{
-					Action newAction;
-					newAction.actionType = Function::InteractFunction;
-					newAction.startingState.actionState = ActionState::Interacting;
-					newAction.startingState.tile = m_InitialState.tile;
-					newAction.endState.actionState = ActionState::Interacting;
-					newAction.endState.tile = m_AutonomousGoal.tile;
-					m_ActionQueue.InsertItem(newAction);
-				}
-				else
-				{
-					ATile3D* closestTile = nullptr;
-					for (ATile3D* tile : m_MapData)
+					ConnectedTile moveTile{ nullptr };
+					if (actionString.GetCharArray()[1] == 'n') return; // should not be able to move in no direction
 					{
-						// instead of finding tiles in range, find all tiles connected to goal tile
-						if (IsConnectedTile(tile, m_AutonomousGoal.tile) && tile->GetType() == TileType::None)
+						TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+						for (ConnectedTile tile : connectedTiles)
 						{
-							if (closestTile == nullptr)
+							if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
 							{
-								closestTile = tile;
-							}
-							else
-							{
-								FVector2D goalLocation = FVector2D{ m_InitialState.tile->GetActorLocation().X, m_InitialState.tile->GetActorLocation().Y };
-								FVector2D closestTileLocation = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
-								FVector2D currentTileLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
-								if (FVector2D::Distance(closestTileLocation, goalLocation) > FVector2D::Distance(currentTileLocation, goalLocation))
-								{
-									closestTile = tile;
-								}
+								// this is the direction we want
+								moveTile.ref = tile.ref;
+								moveTile.xDir = tile.xDir;
+								moveTile.yDir = tile.yDir;
+								break;
 							}
 						}
 					}
-
-					Path newPath = FindAStarPath(m_InitialState.tile, closestTile);
-
-					if (newPath.totalCost < 0)
+					if (moveTile.ref == nullptr) return;
+					else
 					{
-						// try again
-						return;
-					}
-
-					Action newAction;
-
-					for (int i = 0; i < newPath.locations.Num() - 1; i++)
-					{
-						// for each location
-						// create the action that goes from start location to this new location
+						// send attack action to queue
+						Action newAction;
 						newAction.actionType = Function::MoveFunction;
 						newAction.startingState.actionState = ActionState::DoingNothing;
-						newAction.startingState.tile = FindClosestTile(newPath.locations[i]);
+						newAction.startingState.tile = m_InitialState.tile;
 						newAction.endState.actionState = ActionState::DoingNothing;
-						newAction.endState.tile = FindClosestTile(newPath.locations[i + 1]);
+						newAction.endState.tile = moveTile.ref;
+						newAction.direction = FVector2D{ moveTile.xDir, moveTile.yDir };
 						// add action to queue
 						m_ActionQueue.InsertItem(newAction);
-
 					}
-					newAction.actionType = Function::InteractFunction;
-					newAction.startingState.actionState = ActionState::Interacting;
-					newAction.startingState.tile = newAction.endState.tile; // use last end tile as new starting point for action
-					newAction.endState.actionState = ActionState::Interacting;
-					newAction.endState.tile = m_AutonomousGoal.tile;
-					m_ActionQueue.InsertItem(newAction);
 				}
+				else if (actionString.GetCharArray()[0] == 'I')
+				{
+					ConnectedTile interactTile{ nullptr };
+					if (actionString.GetCharArray()[1] == 'n')
+					{
+						// no direction , do not find connected tiles
+						interactTile.ref = m_InitialState.tile;
+						interactTile.xDir = 0;
+						interactTile.yDir = 0;
+					}
+					{
+						TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+						for (ConnectedTile tile : connectedTiles)
+						{
+							if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
+							{
+								// this is the direction we want
+								interactTile.ref = tile.ref;
+								interactTile.xDir = tile.xDir;
+								interactTile.yDir = tile.yDir;
+								break;
+							}
+						}
+					}
+					if (interactTile.ref == nullptr) return;
+					else
+					{
+						// send attack action to queue
+						Action newAction;
+						newAction.actionType = Function::InteractFunction;
+						newAction.startingState.actionState = ActionState::Interacting;
+						newAction.startingState.tile = m_InitialState.tile;
+						newAction.endState.actionState = ActionState::Interacting;
+						newAction.endState.tile = interactTile.ref;
+						newAction.direction = FVector2D{ interactTile.xDir, interactTile.yDir };
+						// add action to queue
+						m_ActionQueue.InsertItem(newAction);
+					}
+				} // nothing happens for else no need to load action
 			}
 		}
 	}
@@ -711,23 +639,23 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 		int index = FindRemoveIndex(openList, closestNode);
 		if (index >= 0) openList.RemoveAt(index);
 
-		TArray<ATile3D*> connectedTiles = closestNode.associatedTile->GetConnectedTiles();
+		TArray <ConnectedTile> connectedTiles = closestNode.associatedTile->GetConnectedTiles();
 
-		for (ATile3D* tile : connectedTiles)
+		for (ConnectedTile tile : connectedTiles)
 		{
 			// if goal has been found exit search
-			if (tile == endTile)
+			if (tile.ref == endTile)
 			{
-				heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
-				FNode newNode = FNode(closestNode.actualCost + tile->GetWeight(), heuristicCost, endTile, closestNode.associatedTile);
+				heuristicCost = FVector::Distance(tile.ref->GetActorLocation(), endTile->GetActorLocation());
+				FNode newNode = FNode(closestNode.actualCost + tile.ref->GetWeight(), heuristicCost, endTile, closestNode.associatedTile);
 				closedList.Add(newNode);
 				foundPath = true;
 				break;
 			}
 
 
-			heuristicCost = FVector::Distance(tile->GetActorLocation(), endTile->GetActorLocation());
-			FNode newNode = FNode(closestNode.actualCost + tile->GetWeight(), heuristicCost, tile, closestNode.associatedTile);
+			heuristicCost = FVector::Distance(tile.ref->GetActorLocation(), endTile->GetActorLocation());
+			FNode newNode = FNode(closestNode.actualCost + tile.ref->GetWeight(), heuristicCost, tile.ref, closestNode.associatedTile);
 
 			if (!InList(openList, newNode.associatedTile) && !InList(closedList, newNode.associatedTile) && newNode.associatedTile->GetType() == TileType::None)
 			{
@@ -809,6 +737,59 @@ int UPlanningBrain::FindRemoveIndex(const TArray<FNode>& list, FNode nodeToRemov
 	return -1;
 }
 
+FString UPlanningBrain::GenerateRandomAction()
+{
+	FString outputString = "";
+
+	// generate action (move, attack or interact) (assert that actions are uppercase)
+
+	int32 randomAction = FMath::RandRange(0, 3);
+
+	if (randomAction == 0)
+	{
+		outputString = outputString + "A"; // attack
+	}
+	else if (randomAction == 1)
+	{
+		outputString = outputString + "M"; // move
+	}
+	else if (randomAction == 2)
+	{
+		outputString = outputString + "I"; // interact
+	}
+	else
+	{
+		outputString = outputString + "N"; // Nothing
+	}
+
+	// generate random direction (assert that directions are lowercase)
+
+	int32 randomDirection = FMath::RandRange(0, 4);
+
+	if (randomDirection == 0)
+	{
+		outputString = outputString + "u"; // up
+	}
+	else if (randomDirection == 1)
+	{
+		outputString = outputString + "l"; // left
+	}
+	else if (randomDirection == 2)
+	{
+		outputString = outputString + "r"; // right
+	}
+	else if (randomDirection == 3)
+	{
+		outputString = outputString + "d"; // down
+	}
+	else
+	{
+		outputString = outputString + "n"; // no direction
+	}
+
+	return outputString;
+}
+
 //FVector2D UPlanningBrain::InterpolatePath(FVector2D startPoint, FVector2D endPoint, FVector2D currentLocation)
 //{
 //
@@ -838,7 +819,12 @@ bool UPlanningBrain::IsWithinFollowRange(FVector startingTileLocation, FVector t
 
 bool UPlanningBrain::IsConnectedTile(ATile3D* startTile, ATile3D* endTile)
 {
-	if (endTile->GetConnectedTiles().Contains(startTile))
+	TArray<ATile3D*> tiles;
+	for (ConnectedTile tile : endTile->GetConnectedTiles())
+	{
+		tiles.Add(tile.ref);
+	}
+	if (tiles.Contains(startTile))
 	{
 		return true;
 	}

@@ -202,24 +202,24 @@ State UAgentGoalCreator::CreateGoal()
 
 				ATile3D* closestTile{ nullptr };
 
-				for (ATile3D* adjacentTile : tile->GetConnectedTiles())
+				for (ConnectedTile adjacentTile : tile->GetConnectedTiles())
 				{
-					if (adjacentTile->GetType() == TileType::None)
+					if (adjacentTile.ref->GetType() == TileType::None)
 					{
 						if (closestTile == nullptr)
 						{
-							closestTile = adjacentTile;
+							closestTile = adjacentTile.ref;
 						}
 						else
 						{
 							FVector2D npcLoc = FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y };
 							FVector2D closestTileLoc = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
-							FVector2D adjacentTileLoc = FVector2D{ adjacentTile->GetActorLocation().X, adjacentTile->GetActorLocation().Y };
+							FVector2D adjacentTileLoc = FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y };
 							float oldDistance = FVector2D::Distance(npcLoc, closestTileLoc);
 							float newDistance = FVector2D::Distance(npcLoc, adjacentTileLoc);
 							if (newDistance < oldDistance)
 							{
-								closestTile = adjacentTile;
+								closestTile = adjacentTile.ref;
 							}
 						}
 					}
@@ -405,24 +405,24 @@ State UAgentGoalCreator::CreateGoal()
 
 				ATile3D* closestTile{ nullptr };
 
-				for (ATile3D* adjacentTile : tile->GetConnectedTiles())
+				for (ConnectedTile adjacentTile : tile->GetConnectedTiles())
 				{
-					if (adjacentTile->GetType() == TileType::None)
+					if (adjacentTile.ref->GetType() == TileType::None)
 					{
 						if (closestTile == nullptr)
 						{
-							closestTile = adjacentTile;
+							closestTile = adjacentTile.ref;
 						}
 						else
 						{
 							FVector2D npcLoc = FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y };
 							FVector2D closestTileLoc = FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y };
-							FVector2D adjacentTileLoc = FVector2D{ adjacentTile->GetActorLocation().X, adjacentTile->GetActorLocation().Y };
+							FVector2D adjacentTileLoc = FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y };
 							float oldDistance = FVector2D::Distance(npcLoc, closestTileLoc);
 							float newDistance = FVector2D::Distance(npcLoc, adjacentTileLoc);
 							if (newDistance < oldDistance)
 							{
-								closestTile = adjacentTile;
+								closestTile = adjacentTile.ref;
 							}
 						}
 					}

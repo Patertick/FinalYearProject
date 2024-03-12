@@ -119,13 +119,13 @@ State UResearcherGoalCreator::CreateGoal()
 					averageForwardVector2D *= -1.0f;
 					ATile3D* currentTile = m_NPCRef->CallFindClosestTile(FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
 					ATile3D* tileInDirectionOfVector{ nullptr };
-					for (ATile3D* adjacentTile : currentTile->GetConnectedTiles())
+					for (ConnectedTile adjacentTile : currentTile->GetConnectedTiles())
 					{
-						if (adjacentTile->GetType() == TileType::None)
+						if (adjacentTile.ref->GetType() == TileType::None)
 						{
 							if (tileInDirectionOfVector == nullptr)
 							{
-								tileInDirectionOfVector = adjacentTile;
+								tileInDirectionOfVector = adjacentTile.ref;
 							}
 							else
 							{
@@ -133,10 +133,10 @@ State UResearcherGoalCreator::CreateGoal()
 								FVector2D nextLocation = FVector2D{ m_NPCRef->GetActorLocation().X + (averageForwardVector2D.X * 10.0f), 
 								m_NPCRef->GetActorLocation().Y + (averageForwardVector2D.Y * 10.0f) };
 								float oldDistance = FVector2D::Distance(nextLocation, FVector2D{ tileInDirectionOfVector->GetActorLocation().X, tileInDirectionOfVector->GetActorLocation().Y });
-								float newDistance = FVector2D::Distance(nextLocation, FVector2D{ adjacentTile->GetActorLocation().X, adjacentTile->GetActorLocation().Y });
+								float newDistance = FVector2D::Distance(nextLocation, FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y });
 								if (newDistance < oldDistance)
 								{
-									tileInDirectionOfVector = adjacentTile;
+									tileInDirectionOfVector = adjacentTile.ref;
 								}
 							}
 						}
@@ -278,13 +278,13 @@ State UResearcherGoalCreator::CreateGoal()
 				averageForwardVector2D *= -1.0f;
 				ATile3D* currentTile = m_NPCRef->CallFindClosestTile(FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
 				ATile3D* tileInDirectionOfVector{ nullptr };
-				for (ATile3D* adjacentTile : currentTile->GetConnectedTiles())
+				for (ConnectedTile adjacentTile : currentTile->GetConnectedTiles())
 				{
-					if (adjacentTile->GetType() == TileType::None)
+					if (adjacentTile.ref->GetType() == TileType::None)
 					{
 						if (tileInDirectionOfVector == nullptr)
 						{
-							tileInDirectionOfVector = adjacentTile;
+							tileInDirectionOfVector = adjacentTile.ref;
 						}
 						else
 						{
@@ -292,10 +292,10 @@ State UResearcherGoalCreator::CreateGoal()
 							FVector2D nextLocation = FVector2D{ m_NPCRef->GetActorLocation().X + (averageForwardVector2D.X * 10.0f),
 							m_NPCRef->GetActorLocation().Y + (averageForwardVector2D.Y * 10.0f) };
 							float oldDistance = FVector2D::Distance(nextLocation, FVector2D{ tileInDirectionOfVector->GetActorLocation().X, tileInDirectionOfVector->GetActorLocation().Y });
-							float newDistance = FVector2D::Distance(nextLocation, FVector2D{ adjacentTile->GetActorLocation().X, adjacentTile->GetActorLocation().Y });
+							float newDistance = FVector2D::Distance(nextLocation, FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y });
 							if (newDistance < oldDistance)
 							{
-								tileInDirectionOfVector = adjacentTile;
+								tileInDirectionOfVector = adjacentTile.ref;
 							}
 						}
 					}

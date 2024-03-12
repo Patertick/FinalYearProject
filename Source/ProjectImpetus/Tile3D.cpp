@@ -39,7 +39,35 @@ void ATile3D::FindConnectedTiles()
 		if (tile != this && FVector::Distance(tile->GetActorLocation(), GetActorLocation()) <= KMAXTILEDISTANCE)
 		{
 			// adjacent
-			m_connectedTiles.Add(Cast<ATile3D>(tile));
+			ConnectedTile newTile;
+			newTile.ref = Cast<ATile3D>(tile);
+			FVector directionVector = tile->GetActorLocation() - GetActorLocation();
+			directionVector.Normalize();
+			newTile.xDir = directionVector.X;
+			newTile.yDir = directionVector.Y;
+			
+			if (newTile.xDir == -1 && newTile.yDir == 0)
+			{
+				newTile.direction = "l";
+			}
+			else if (newTile.xDir == 1 && newTile.yDir == 0)
+			{
+				newTile.direction = "r";
+			}
+			else if (newTile.xDir == 0 && newTile.yDir == -1)
+			{
+				newTile.direction = "u";
+			}
+			else if (newTile.xDir == 0 && newTile.yDir == 1)
+			{
+				newTile.direction = "d";
+			}
+			else
+			{
+				newTile.direction = "NULL";
+			}
+
+			m_connectedTiles.Add(newTile);
 		}
 	}
 }
