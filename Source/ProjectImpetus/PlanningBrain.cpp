@@ -5,6 +5,7 @@
 #include "Tile3D.h"
 #include <Kismet/GameplayStatics.h>
 #include "NPC.h"
+#include "Interactable.h"
 
 // Sets default values for this component's properties
 UPlanningBrain::UPlanningBrain()
@@ -465,133 +466,56 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			// item exists in action queue and npc isn't currently doing something, run next action
 			if (!m_NPCRef->IsExecutingAction())
 			{
+				//AppendMapStateManager(m_InitialState.tile, NPCAction::NPCDoingNothingSelf);
 				Action action = m_ActionQueue.GetFirstItem();
 				m_NPCRef->SetAction(action);
 			}
 		}
 		else
 		{
-			// generate random actions
-
-			int32 numOfActions = FMath::RandRange(0, 20);
-
-			for (int i = 0; i < numOfActions; i++)
+			if (!m_NPCRef->m_RunQLearning)
 			{
-				// generate random action (move, attack, interact and then random direction)
-				FString actionString = GenerateRandomAction();
-
-				if (actionString.GetCharArray()[0] == 'A')
-				{
-					ConnectedTile attackTile{ nullptr };
-					if (actionString.GetCharArray()[1] == 'n')
-					{
-						// no direction , do not find connected tiles
-						attackTile.ref = m_InitialState.tile;
-						attackTile.xDir = 0;
-						attackTile.yDir = 0;
-					}
-					{
-						TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
-						for (ConnectedTile tile : connectedTiles)
-						{
-							if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
-							{
-								// this is the direction we want
-								attackTile.ref = tile.ref;
-								attackTile.xDir = tile.xDir;
-								attackTile.yDir = tile.yDir;
-								break;
-							}
-						}
-					}
-					if (attackTile.ref == nullptr) return;
-					else
-					{
-						// send attack action to queue
-						Action newAction;
-						newAction.actionType = Function::AttackFunction;
-						newAction.startingState.actionState = ActionState::Attacking;
-						newAction.startingState.tile = m_InitialState.tile;
-						newAction.endState.actionState = ActionState::Attacking;
-						newAction.endState.tile = attackTile.ref;
-						newAction.direction = FVector2D{ attackTile.xDir, attackTile.yDir };
-						// add action to queue
-						m_ActionQueue.InsertItem(newAction);
-					}
-				}
-				else if (actionString.GetCharArray()[0] == 'M')
-				{
-					ConnectedTile moveTile{ nullptr };
-					if (actionString.GetCharArray()[1] == 'n') return; // should not be able to move in no direction
-					{
-						TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
-						for (ConnectedTile tile : connectedTiles)
-						{
-							if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
-							{
-								// this is the direction we want
-								moveTile.ref = tile.ref;
-								moveTile.xDir = tile.xDir;
-								moveTile.yDir = tile.yDir;
-								break;
-							}
-						}
-					}
-					if (moveTile.ref == nullptr) return;
-					else
-					{
-						// send attack action to queue
-						Action newAction;
-						newAction.actionType = Function::MoveFunction;
-						newAction.startingState.actionState = ActionState::DoingNothing;
-						newAction.startingState.tile = m_InitialState.tile;
-						newAction.endState.actionState = ActionState::DoingNothing;
-						newAction.endState.tile = moveTile.ref;
-						newAction.direction = FVector2D{ moveTile.xDir, moveTile.yDir };
-						// add action to queue
-						m_ActionQueue.InsertItem(newAction);
-					}
-				}
-				else if (actionString.GetCharArray()[0] == 'I')
-				{
-					ConnectedTile interactTile{ nullptr };
-					if (actionString.GetCharArray()[1] == 'n')
-					{
-						// no direction , do not find connected tiles
-						interactTile.ref = m_InitialState.tile;
-						interactTile.xDir = 0;
-						interactTile.yDir = 0;
-					}
-					{
-						TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
-						for (ConnectedTile tile : connectedTiles)
-						{
-							if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
-							{
-								// this is the direction we want
-								interactTile.ref = tile.ref;
-								interactTile.xDir = tile.xDir;
-								interactTile.yDir = tile.yDir;
-								break;
-							}
-						}
-					}
-					if (interactTile.ref == nullptr) return;
-					else
-					{
-						// send attack action to queue
-						Action newAction;
-						newAction.actionType = Function::InteractFunction;
-						newAction.startingState.actionState = ActionState::Interacting;
-						newAction.startingState.tile = m_InitialState.tile;
-						newAction.endState.actionState = ActionState::Interacting;
-						newAction.endState.tile = interactTile.ref;
-						newAction.direction = FVector2D{ interactTile.xDir, interactTile.yDir };
-						// add action to queue
-						m_ActionQueue.InsertItem(newAction);
-					}
-				} // nothing happens for else no need to load action
+				return;
 			}
+			// evaluate last actions effect on world state
+
+			CreateQValues();
+
+			if (WasLastActionSignificant() || m_PastActionsQNodes.Num() >= m_MaxWalkLength)
+			{
+				float actionFitness = EvaluateAction(); // add to q values using evaluation
+				//actionFitness *= m_LearningRate;
+
+				for (int node = 0; node < m_PastActionsQNodes.Num(); node++)
+				{
+					for (int i = 0; i < m_QValues.Num(); i++)
+					{
+						if (m_PastActionsQNodes[node] == m_QValues[i])
+						{
+							if (actionFitness > m_QValues[i].value)
+							{
+								m_QValues[i].value = actionFitness;
+							}
+						}
+					}
+				}
+
+				m_PastActionsQNodes.Empty(); // reset
+			}
+			
+			float randomValue = FMath::FRandRange(0.0f, 1.0f);
+
+			if (randomValue >= m_ExplorationRate)
+			{
+				// use learned action
+				CreateNextAction();
+			}
+			else
+			{
+				// use random action
+				CreateNextRandomAction();
+			}		
+
 		}
 	}
 	else
@@ -601,6 +525,773 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 
 }
+
+// Q learning functions
+
+
+void UPlanningBrain::CreateNextRandomAction()
+{
+	if (m_MapStateManager->GetMapState().npcStates.Num() <= 0) return;
+	// generate random action (move, attack, interact and then random direction)
+	FString actionString = GenerateRandomAction();
+
+	if (actionString.GetCharArray()[0] == 'A')
+	{
+		ConnectedTile attackTile{ nullptr };
+		if (actionString.GetCharArray()[1] == 'n')
+		{
+			// no direction , do not find connected tiles
+			attackTile.ref = m_InitialState.tile;
+			attackTile.xDir = 0;
+			attackTile.yDir = 0;
+		}
+		{
+			TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
+				{
+					// this is the direction we want
+					attackTile.ref = tile.ref;
+					attackTile.xDir = tile.xDir;
+					attackTile.yDir = tile.yDir;
+					break;
+				}
+			}
+		}
+		if (attackTile.ref == nullptr || !TileHasNPC(attackTile.ref) || 
+			FindClosestNPC(FVector2D{ attackTile.ref->GetActorLocation().X, attackTile.ref->GetActorLocation().Y })->m_Threat == false) return;
+		else
+		{
+			// send attack action to queue
+			Action newAction;
+			QNode newNode;
+			newAction.actionType = Function::AttackFunction;
+			newAction.startingState.actionState = m_InitialState.actionState;
+			newAction.startingState.tile = m_InitialState.tile;
+			newAction.endState.actionState = ActionState::Attacking;
+			newAction.endState.tile = attackTile.ref;
+			newAction.direction = FVector2D{ attackTile.xDir, attackTile.yDir };
+			if (actionString.GetCharArray()[1] == 'u')
+			{
+				newNode.action = NPCAction::NPCAttackUp;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'r')
+			{
+				newNode.action = NPCAction::NPCAttackRight;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'l')
+			{
+				newNode.action = NPCAction::NPCAttackLeft;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'd')
+			{
+				newNode.action = NPCAction::NPCAttackDown;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else
+			{
+				newNode.action = NPCAction::NPCAttackSelf;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			m_PastActionsQNodes.Add(newNode);
+			AppendMapStateManager(m_InitialState.tile, newNode.action);
+			// add action to queue
+			m_ActionQueue.InsertItem(newAction);
+			
+		}
+	}
+	else if (actionString.GetCharArray()[0] == 'M')
+	{
+		ConnectedTile moveTile{ nullptr };
+		if (actionString.GetCharArray()[1] == 'n') return; // should not be able to move in no direction
+		{
+			TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
+				{
+					// this is the direction we want
+					moveTile.ref = tile.ref;
+					moveTile.xDir = tile.xDir;
+					moveTile.yDir = tile.yDir;
+					break;
+				}
+			}
+		}
+		if (moveTile.ref == nullptr || moveTile.ref->GetType() != TileType::None) return;
+		else
+		{
+			// send attack action to queue
+			Action newAction;
+			QNode newNode;
+			newAction.actionType = Function::MoveFunction;
+			newAction.startingState.actionState = m_InitialState.actionState;
+			newAction.startingState.tile = m_InitialState.tile;
+			newAction.endState.actionState = ActionState::MovingToLocation;
+			newAction.endState.tile = moveTile.ref;
+			newAction.direction = FVector2D{ moveTile.xDir, moveTile.yDir };
+			if (actionString.GetCharArray()[1] == 'u')
+			{
+				newNode.action = NPCAction::NPCMoveUp;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'r')
+			{
+				newNode.action = NPCAction::NPCMoveRight;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'l')
+			{
+				newNode.action = NPCAction::NPCMoveLeft;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'd')
+			{
+				newNode.action = NPCAction::NPCMoveDown;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			m_PastActionsQNodes.Add(newNode);
+			
+			AppendMapStateManager(m_InitialState.tile, newNode.action);
+			// add action to queue
+			m_ActionQueue.InsertItem(newAction);
+		}
+	}
+	else if (actionString.GetCharArray()[0] == 'I')
+	{
+		ConnectedTile interactTile{ nullptr };
+		if (actionString.GetCharArray()[1] == 'n')
+		{
+			// no direction , do not find connected tiles
+			interactTile.ref = m_InitialState.tile;
+			interactTile.xDir = 0;
+			interactTile.yDir = 0;
+		}
+		{
+			TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
+				{
+					// this is the direction we want
+					interactTile.ref = tile.ref;
+					interactTile.xDir = tile.xDir;
+					interactTile.yDir = tile.yDir;
+					break;
+				}
+			}
+		}
+		if (interactTile.ref == nullptr || !TileHasInteractable(interactTile.ref)) return;
+		else
+		{
+			// send attack action to queue
+			Action newAction;
+			QNode newNode;
+			newAction.actionType = Function::InteractFunction;
+			newAction.startingState.actionState = m_InitialState.actionState;
+			newAction.startingState.tile = m_InitialState.tile;
+			newAction.endState.actionState = ActionState::Interacting;
+			newAction.endState.tile = interactTile.ref;
+			newAction.direction = FVector2D{ interactTile.xDir, interactTile.yDir };
+
+			if (actionString.GetCharArray()[1] == 'u')
+			{
+				newNode.action = NPCAction::NPCInteractUp;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'r')
+			{
+				newNode.action = NPCAction::NPCInteractRight;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'l')
+			{
+				newNode.action = NPCAction::NPCInteractLeft;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'd')
+			{
+				newNode.action = NPCAction::NPCInteractDown;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else
+			{
+				newNode.action = NPCAction::NPCInteractSelf;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			m_PastActionsQNodes.Add(newNode);
+			AppendMapStateManager(m_InitialState.tile, newNode.action);
+			// add action to queue
+			m_ActionQueue.InsertItem(newAction);
+		}
+	} 
+	else if (actionString.GetCharArray()[0] == 'S')
+	{
+	ConnectedTile abilityTile{ nullptr };
+	if (actionString.GetCharArray()[1] == 'n')
+	{
+		// no direction , do not find connected tiles
+		abilityTile.ref = m_InitialState.tile;
+		abilityTile.xDir = 0;
+		abilityTile.yDir = 0;
+	}
+	{
+		TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
+			{
+				// this is the direction we want
+				abilityTile.ref = tile.ref;
+				abilityTile.xDir = tile.xDir;
+				abilityTile.yDir = tile.yDir;
+				break;
+			}
+		}
+	}
+	if (abilityTile.ref == nullptr) return;
+	else
+	{
+		// send attack action to queue
+		Action newAction;
+		QNode newNode;
+		newAction.actionType = Function::AbilityFunction;
+		newAction.startingState.actionState = m_InitialState.actionState;
+		newAction.startingState.tile = m_InitialState.tile;
+		newAction.endState.actionState = ActionState::UsingAbility;
+		newAction.endState.tile = abilityTile.ref;
+		newAction.direction = FVector2D{ abilityTile.xDir, abilityTile.yDir };
+		if (actionString.GetCharArray()[1] == 'u')
+		{
+			newNode.action = NPCAction::NPCAbilityUp;
+			newNode.worldState = m_MapStateManager->GetMapState();
+		}
+		else if (actionString.GetCharArray()[1] == 'r')
+		{
+			newNode.action = NPCAction::NPCAbilityRight;
+			newNode.worldState = m_MapStateManager->GetMapState();
+		}
+		else if (actionString.GetCharArray()[1] == 'l')
+		{
+			newNode.action = NPCAction::NPCAbilityLeft;
+			newNode.worldState = m_MapStateManager->GetMapState();
+		}
+		else if (actionString.GetCharArray()[1] == 'd')
+		{
+			newNode.action = NPCAction::NPCAbilityDown;
+			newNode.worldState = m_MapStateManager->GetMapState();
+		}
+		else
+		{
+			newNode.action = NPCAction::NPCAbilitySelf;
+			newNode.worldState = m_MapStateManager->GetMapState();
+		}
+		m_PastActionsQNodes.Add(newNode);
+		AppendMapStateManager(m_InitialState.tile, newNode.action);
+		// add action to queue
+		m_ActionQueue.InsertItem(newAction);
+	}
+	}// nothing happens for else no need to load action
+} 
+
+float UPlanningBrain::EvaluateAction()
+{
+	// check health from first state to current state
+	// how much damage was taken?
+
+	float damageTaken{ 0.0f };
+
+	for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
+	{
+		if (oldStates.NPCIndex == m_NPCRef->GetIndex())
+		{
+			for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
+			{
+				if (newStates.NPCIndex == m_NPCRef->GetIndex())
+				{
+					damageTaken = abs(newStates.npcHealth - oldStates.npcHealth);
+					damageTaken /= m_NPCRef->GetMaxHealth();
+					// divide by max health to enforce between 0.0f and 1.0f
+				}
+			}
+		}
+	}
+
+	// check health of all other npcs 
+	// how much damage was dealt?
+
+	float damageDealtTotal{ 0.0f };
+	int32 count{ 0 };
+
+	for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
+	{
+		if (oldStates.NPCIndex != m_NPCRef->GetIndex())
+		{
+			for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
+			{
+				if (newStates.NPCIndex != m_NPCRef->GetIndex())
+				{
+					float damageDealt;
+					damageDealt = abs(newStates.npcHealth - oldStates.npcHealth);
+					damageDealt /= m_NPCRef->GetMaxHealth();
+					damageDealtTotal += damageDealt;
+					count++;
+					// divide by max health to enforce between 0.0f and 1.0f
+				}
+			}
+		}
+	}
+
+	float onSameTileType{ 0.5f };
+
+	for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
+	{
+		if (oldStates.NPCIndex == m_NPCRef->GetIndex())
+		{
+			for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
+			{
+				if (newStates.NPCIndex == m_NPCRef->GetIndex())
+				{
+					if (newStates.tileRef->m_FloorType == oldStates.tileRef->m_FloorType)
+					{
+						onSameTileType = 1.0f;
+					}
+				}
+			}
+		}
+	}
+
+
+	// divide damage dealt by number of npcs checked
+	damageDealtTotal /= count;
+
+	return damageTaken * damageDealtTotal * onSameTileType; // a perfect set of actions is one that results in every single other NPC being killed and this NPC taking no damage, obviously unrealistic, impossible even, but thats fine for now
+}
+
+bool UPlanningBrain::WasLastActionSignificant()
+{
+	// significant actions include: NPC health changing value, NPC death, NPC using ability
+
+	if (m_PastActionsQNodes.Num() <= 0) return false;
+
+	if (m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].action == NPCAction::NPCAbilityDown || m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].action == NPCAction::NPCAbilityLeft
+		|| m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].action == NPCAction::NPCAbilityUp || m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].action == NPCAction::NPCAbilityRight
+		|| m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].action == NPCAction::NPCAbilitySelf)
+	{
+		return true;
+	}
+
+
+	for (const NPCState& oldStates : m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].worldState.npcStates)
+	{
+		for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
+		{
+			float healthDifference = oldStates.npcHealth - newStates.npcHealth;
+
+			if (healthDifference <= 0.01f && healthDifference >= -0.01f)
+			{
+				return true;
+			}
+
+			if (newStates.npcHealth <= 0.0f)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void UPlanningBrain::AddNPCToMapStateManager(int32 index, float health, FVector position)
+{
+	m_MapStateManager->AddToMapState(index, m_InitialState.tile, health, FVector2D{ position.X, position.Y });
+}
+
+void UPlanningBrain::AppendMapStateManager(ATile3D* currentTile, NPCAction currentAction)
+{
+	m_MapStateManager->AppendNPCState(m_NPCRef->GetIndex(), currentTile, currentAction, m_NPCRef->GetHealth(), FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
+}
+
+void UPlanningBrain::CreateNextAction()
+{
+	if (m_QValues.Num() <= 0) return;
+	QNode highestValueNode = QNode();
+	for (QNode node : m_QValues)
+	{
+		if (node.worldState == m_MapStateManager->GetMapState())
+		{
+			// find highest Q node value for this state
+			if (highestValueNode.value < node.value)
+			{
+				highestValueNode = node;
+			}
+		}
+	}
+
+	if (highestValueNode == QNode()) return; // if there is no Q value for this state, return
+
+	Action newAction;
+	TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+
+
+	QNode newNode;
+	newNode.action = highestValueNode.action;
+	newNode.worldState = m_MapStateManager->GetMapState();
+	AppendMapStateManager(m_InitialState.tile, newNode.action);
+	m_PastActionsQNodes.Add(newNode);
+	
+
+	switch (highestValueNode.action)
+	{
+	case NPCAbilityUp:
+		
+		newAction.actionType = Function::AbilityFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::UsingAbility;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'u')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAbilityDown:
+		newAction.actionType = Function::AbilityFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::UsingAbility;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'd')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAbilityLeft:
+		newAction.actionType = Function::AbilityFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::UsingAbility;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'l')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAbilityRight:
+		newAction.actionType = Function::AbilityFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::UsingAbility;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'r')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAbilitySelf:
+		newAction.actionType = Function::AbilityFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::UsingAbility;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'n')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAttackUp:
+		newAction.actionType = Function::AttackFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Attacking;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'u')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAttackDown:
+		newAction.actionType = Function::AttackFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Attacking;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'd')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAttackLeft:
+		newAction.actionType = Function::AttackFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Attacking;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'l')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAttackRight:
+		newAction.actionType = Function::AttackFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Attacking;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'r')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCAttackSelf:
+		newAction.actionType = Function::AttackFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Attacking;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'n')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCInteractUp:
+		newAction.actionType = Function::InteractFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Interacting;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'u')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCInteractDown:
+		newAction.actionType = Function::InteractFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Interacting;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'd')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCInteractLeft:
+		newAction.actionType = Function::InteractFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Interacting;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'l')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCInteractRight:
+		newAction.actionType = Function::InteractFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Interacting;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'r')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCInteractSelf:
+		newAction.actionType = Function::InteractFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::Interacting;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'n')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCMoveUp:
+		newAction.actionType = Function::MoveFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::MovingToLocation;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'u')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCMoveDown:
+		newAction.actionType = Function::MoveFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::MovingToLocation;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'd')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCMoveLeft:
+		newAction.actionType = Function::MoveFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::MovingToLocation;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'l')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	case NPCMoveRight:
+		newAction.actionType = Function::MoveFunction;
+		newAction.startingState = m_InitialState;
+		newAction.endState.actionState = ActionState::MovingToLocation;
+		for (ConnectedTile tile : connectedTiles)
+		{
+			if (tile.direction.GetCharArray()[0] == 'r')
+			{
+				// this is the direction we want
+				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
+				newAction.endState.tile = tile.ref;
+				m_ActionQueue.InsertItem(newAction);
+				return;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+
+void UPlanningBrain::CreateQValues()
+{
+	// find current map state
+	// find current action
+
+	if (m_PastActionsQNodes.Num() <= 0)
+	{
+		return;
+	}
+	
+	QNode newQNode;
+	newQNode.action = m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].action;
+	newQNode.value = 0.0f; // dont check for values
+	newQNode.worldState = m_MapStateManager->GetMapState();
+
+	// go through Q values, does this already exist?
+	for (QNode node : m_QValues)
+	{
+		if (node == newQNode)
+		{
+			// yes, return
+			return;
+		}
+	}
+	 
+	// no, create new Q node
+	m_QValues.Add(newQNode);
+}
+
+
+
+
+
 
 Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 {
@@ -743,7 +1434,7 @@ FString UPlanningBrain::GenerateRandomAction()
 
 	// generate action (move, attack or interact) (assert that actions are uppercase)
 
-	int32 randomAction = FMath::RandRange(0, 3);
+	int32 randomAction = FMath::RandRange(0, 4);
 
 	if (randomAction == 0)
 	{
@@ -756,6 +1447,10 @@ FString UPlanningBrain::GenerateRandomAction()
 	else if (randomAction == 2)
 	{
 		outputString = outputString + "I"; // interact
+	}
+	else if (randomAction == 3)
+	{
+		outputString = outputString + "S"; // special ability
 	}
 	else
 	{
@@ -847,6 +1542,66 @@ ATile3D* UPlanningBrain::FindClosestTile(FVector2D location)
 		}
 	}
 	return closestTile;
+}
+
+ANPC* UPlanningBrain::FindClosestNPC(FVector2D location)
+{
+	TArray<AActor*> NPCs;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANPC::StaticClass(), NPCs);
+	ANPC* closestNPC = nullptr;
+	for (AActor* npc : NPCs)
+	{
+		FVector2D objectPos = FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y };
+		// find closest tile for initial state
+		if (closestNPC == nullptr) closestNPC = Cast<ANPC>(npc);
+		else if (FVector2D::Distance(objectPos, location) <
+			FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, location))
+		{
+			// if current tile is closer to this NPC than last closest tile, set new closest tile to current tile
+			closestNPC = Cast<ANPC>(npc);
+		}
+	}
+	return closestNPC;
+}
+
+AInteractable* UPlanningBrain::FindClosestInteractable(FVector2D location)
+{
+	TArray<AActor*> Interactables;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AInteractable::StaticClass(), Interactables);
+	AInteractable* closestInteractable = nullptr;
+	for (AActor* interactable : Interactables)
+	{
+		FVector2D objectPos = FVector2D{ interactable->GetActorLocation().X, interactable->GetActorLocation().Y };
+		// find closest tile for initial state
+		if (closestInteractable == nullptr) closestInteractable = Cast<AInteractable>(interactable);
+		else if (FVector2D::Distance(objectPos, location) <
+			FVector2D::Distance(FVector2D{ closestInteractable->GetActorLocation().X, closestInteractable->GetActorLocation().Y }, location))
+		{
+			// if current tile is closer to this NPC than last closest tile, set new closest tile to current tile
+			closestInteractable = Cast<AInteractable>(interactable);
+		}
+	}
+	return closestInteractable;
+}
+
+bool UPlanningBrain::TileHasNPC(ATile3D* tile)
+{
+	ANPC* closestNPC = FindClosestNPC(FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y });
+	if (closestNPC == nullptr) return false;
+	FVector2D npcPos = FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y };
+
+	if (FVector2D::Distance(FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y }, npcPos) < KTILESIZE) return true;
+	return false;
+}
+
+bool UPlanningBrain::TileHasInteractable(ATile3D* tile)
+{
+	AInteractable* closestInteractable = FindClosestInteractable(FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y });
+	if (closestInteractable == nullptr) return false;
+	FVector2D interactablePos = FVector2D{ closestInteractable->GetActorLocation().X, closestInteractable->GetActorLocation().Y };
+
+	if (FVector2D::Distance(FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y }, interactablePos) < KTILESIZE) return true;
+	return false;
 }
 
 TArray<Action> UPlanningBrain::CreateAttackActions(int32 numberOfAttacks, State goal, ATile3D* startTile)

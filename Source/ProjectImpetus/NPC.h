@@ -88,6 +88,8 @@ public:
 		bool m_Blind{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 		bool m_IsSeen{ false };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+		bool m_RunQLearning{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CharacterType)
 		TEnumAsByte<CharacterType> m_CharacterType{ CharacterType::OtherCharacter };
 
@@ -100,6 +102,7 @@ protected:
 	//bool Move(const Path& path, int32& pointOnPath);
 	State Attack(State startState, State endState);
 	State Interact(State startState, State endState);
+	State Ability(State startState, State endState);
 
 private:
 	Directive m_Directive{ Directive::DoNothing };
@@ -114,6 +117,8 @@ private:
 	const int32 KNAMELENGTHMIN{ 1 };
 
 	const int32 KNAMELENGTHMAX{ 5 };
+
+	int32 m_Index{ 0 };
 
 	// sensory variables
 
@@ -187,6 +192,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = BrainSet)
 		void SetEmotionBrain(UEmotionBrain* emotion) { m_EmotionBrain = emotion; }
 
+	UFUNCTION(BlueprintCallable, Category = Run)
+		void RunQLearning() { m_RunQLearning = true; }
+
 	// damage functions
 	UFUNCTION(BlueprintCallable, Category = Damage)
 		void DealDamage(float damage, AActor* damageInstigator) {
@@ -223,6 +231,11 @@ public:
 
 	void SetRotation();
 
+	// Death and respawn functions
+
+	void Death();
+	void Respawn();
+
 
 	// memory functions
 
@@ -247,7 +260,11 @@ public:
 
 	void CallSetGoal(State newGoal) { m_PlanningBrain->SetGoal(newGoal); }
 
+	int32 GetIndex() { return m_Index; }
 
+	float GetMaxHealth() { return m_MaxHealth; }
+
+	float GetHealth() { return m_Health; }
 
 	// Goal creation getters
 

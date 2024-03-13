@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "NPCStateManager.h"
 #include "PlanningBrain.generated.h"
 
 class ATile3D;
+class AInteractable;
 
 // for use in A* algorithm only
 struct Path {
@@ -57,6 +59,7 @@ enum ActionState
 	Following UMETA(DisplayName = "Following someone"),
 	MovingToLocation UMETA(DisplayName = "Moving to location"),
 	RunningAway UMETA(DisplayName = "Running away"),
+	UsingAbility UMETA(DisplayName = "Using Special Ability"),
 	DoingNothing UMETA(DisplayName = "Not doing anything"),
 };
 
@@ -88,13 +91,34 @@ enum Function
 	MoveFunction,
 	AttackFunction,
 	InteractFunction,
+	AbilityFunction,
 	NullAction,
+};
+
+
+
+struct QNode {
+	WorldState worldState;
+	NPCAction action;
+	float value; // between 0.0 and 1.0
+
+	bool operator==(QNode other)
+	{
+		if (worldState.npcStates.Num() <= 0) return false;
+
+		if (worldState == other.worldState)
+		{
+			if (action == other.action)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 };
 
 struct Action
 {
-
-
 	State startingState;
 	State endState;
 	Function actionType;
@@ -198,6 +222,20 @@ private:
 	// Map data
 
 	TArray<ATile3D*> m_MapData; // data of every tile on the map
+	
+	// Q learning variables
+
+	TArray<QNode> m_QValues; // all Q values according to world state
+
+	float m_LearningRate{ 0.7f };
+	float m_ExplorationRate{ 0.3f };
+	int32 m_MaxWalkLength{ 10 }; // number of past actions to be stored max
+
+	TArray<QNode> m_PastActionsQNodes;
+
+	// state manager
+
+	ANPCStateManager* m_MapStateManager{ nullptr };
 
 public:	
 	// Called every frame
@@ -205,7 +243,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SetNPC)
 		void SetNPC(ANPC* npc) { m_NPCRef = npc; }
-
+	UFUNCTION(BlueprintCallable, Category = SetManager)
+		void SetMapStateManager(ANPCStateManager* manager) { m_MapStateManager = manager; }
+	
 
 	// Directive helper functions
 
@@ -213,6 +253,10 @@ public:
 	bool IsWithinFollowRange(FVector startingTileLocation, FVector targetTileLocation);
 	bool IsConnectedTile(ATile3D* startTile, ATile3D* endTile);
 	ATile3D* FindClosestTile(FVector2D location);
+	ANPC* FindClosestNPC(FVector2D location);
+	AInteractable* FindClosestInteractable(FVector2D location);
+	bool TileHasNPC(ATile3D* tile);
+	bool TileHasInteractable(ATile3D* tile);
 	void SetFocus(AActor* focus) { m_Focus = focus; }
 	AActor* GetFocus() { return m_Focus; }
 
@@ -237,7 +281,16 @@ public:
 	// Action generation
 
 	FString GenerateRandomAction();
+	void CreateNextRandomAction(); // random action
 
+	void CreateQValues(); // create Q values for this NPC
+
+	float EvaluateAction(); // pass in Q nodes action, Q nodes world state and resultant (current) world state as parameter
+	bool WasLastActionSignificant(); // store last action and last world state to check for significant actions
+	void CreateNextAction(); // Q learning algorithm
+
+	void AddNPCToMapStateManager(int32 index, float health, FVector position);
+	void AppendMapStateManager(ATile3D* currentTile, NPCAction currentAction);
 
 	// goal creation functions
 

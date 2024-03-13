@@ -2,6 +2,8 @@
 
 
 #include "NPCStateManager.h"
+#include <Kismet/GameplayStatics.h>
+#include "NPC.h"
 
 // Sets default values
 ANPCStateManager::ANPCStateManager()
@@ -15,6 +17,8 @@ ANPCStateManager::ANPCStateManager()
 void ANPCStateManager::BeginPlay()
 {
 	Super::BeginPlay();
+
+
 	
 }
 
@@ -25,7 +29,28 @@ void ANPCStateManager::Tick(float DeltaTime)
 
 }
 
-void ANPCStateManager::AddToMapState(int32 newNPCIndex)
+void ANPCStateManager::AddToMapState(int32 newNPCIndex, ATile3D* startTile, float startHealth, FVector2D startPos)
 {
+	NPCState newState;
+	newState.npcAction = NPCAction::NPCDoingNothingUp; // doesn't really matter what we start with, it'll be overwitten with append
+	newState.NPCIndex = newNPCIndex;
+	newState.npcHealth = startHealth;
+	newState.position = startPos;
+	m_MapState.npcStates.Add(newState);
+	m_NumberOfNPC++;
 }
 
+void ANPCStateManager::AppendNPCState(int32 npcIndex, ATile3D* newTile, NPCAction newAction, float newHealth, FVector2D position)
+{
+	for (int i = 0; i < m_MapState.npcStates.Num(); i++)
+	{
+		if (m_MapState.npcStates[i].NPCIndex == npcIndex)
+		{
+			m_MapState.npcStates[i].tileRef = newTile;
+			m_MapState.npcStates[i].npcAction = newAction;
+			m_MapState.npcStates[i].npcHealth = newHealth;
+			m_MapState.npcStates[i].position = position;
+			return;
+		}
+	}
+}

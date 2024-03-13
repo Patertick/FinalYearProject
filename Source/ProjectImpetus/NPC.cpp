@@ -5,6 +5,8 @@
 #include <Kismet/GameplayStatics.h>
 #include "Math/UnrealMathUtility.h"
 
+static int32 thisNPCIndex{ 0 };
+
 // Sets default values
 ANPC::ANPC()
 {
@@ -17,7 +19,9 @@ ANPC::ANPC()
 void ANPC::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
+	m_Index = thisNPCIndex;
+	thisNPCIndex++;
 
 	// set current action to null
 	m_CurrentAction.actionType = Function::NullAction;
@@ -28,9 +32,9 @@ void ANPC::BeginPlay()
 	newState.tile->SetType(TileType::NPC);
 	newState.actionState = ActionState::DoingNothing;
 	m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
+	m_PlanningBrain->AddNPCToMapStateManager(m_Index, m_Health, GetActorLocation());
 		
 	GenerateName();
-	
 }
 
 // Called every frame
@@ -43,7 +47,7 @@ void ANPC::Tick(float DeltaTime)
 	if (m_Health <= 0.0f)
 	{
 		m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
-		Destroy(); // death
+		Death();
 		return;
 	}
 
@@ -57,6 +61,37 @@ void ANPC::Tick(float DeltaTime)
 
 	SetRotation();
 
+}
+
+void ANPC::Death()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Black, TEXT("I am dead"));
+	Respawn();
+}
+
+void ANPC::Respawn()
+{
+	// set spawn tile (random reception tile)
+
+	TArray<AActor*> Tiles;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
+	for (AActor* tile : Tiles)
+	{
+		if (Cast<ATile3D>(tile)->m_FloorType == FloorType::ReceptionFloor)
+		{
+			// reset properties
+			State newState;
+			m_CurrentAction.actionType = Function::NullAction;
+			m_CurrentAction.direction = FVector2D{ 0, 0 };
+			FVector2D npcLocation = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+			newState.tile = (Cast<ATile3D>(tile));
+			newState.tile->SetType(TileType::NPC);
+			newState.actionState = ActionState::DoingNothing;
+			m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
+			m_Health = m_MaxHealth;
+			return;
+		}
+	}	
 }
 
 // Called to bind functionality to input
@@ -172,16 +207,6 @@ void ANPC::SetRotation()
 State ANPC::Move(State startState, State endState)
 {
 	// move between tiles
-
-	if (!m_PlanningBrain->IsConnectedTile(startState.tile, endState.tile) || endState.tile->GetType() != TileType::None)
-	{
-		State newState;
-		newState.tile = startState.tile;
-		newState.actionState = ActionState::DoingNothing;
-		m_CurrentAction.actionType = Function::NullAction;
-		return newState;
-	}
-
 	FVector2D currentPos = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
 	FVector2D endPos = FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y };
 	// use 2D vectors for movement as Z is constrained
@@ -208,20 +233,7 @@ State ANPC::Move(State startState, State endState)
 
 State ANPC::Attack(State startState, State endState)
 {
-	// while target on endstate is alive
-	if (endState.tile->GetType() == TileType::NPC && m_PlanningBrain->GetFocus() != nullptr)
-	{
-		// if endstate is within range of startstate and the endstate tile type is defined as having an NPC on it, then apply damage to that npc
-		UGameplayStatics::ApplyDamage(m_PlanningBrain->GetFocus(), m_Damage, nullptr, this, NULL);
-
-		// exit action
-		State newState;
-		newState.tile = startState.tile; // attacking function, do not change tile position 
-		newState.actionState = ActionState::Attacking; // attack has finished, reset directive
-		m_CurrentAction.actionType = Function::NullAction;
-		return newState;
-	}
-	// exit action
+	UGameplayStatics::ApplyDamage(m_PlanningBrain->FindClosestNPC(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }), m_Damage, nullptr, this, NULL);
 	State newState;
 	newState.tile = startState.tile;
 	newState.actionState = ActionState::DoingNothing;
@@ -232,29 +244,7 @@ State ANPC::Attack(State startState, State endState)
 
 State ANPC::Interact(State startState, State endState)
 {
-	if (endState.tile->GetType() == TileType::Object && m_PlanningBrain->GetFocus() != nullptr)
-	{
-		if (Cast<AInteractable>(m_PlanningBrain->GetFocus()) != nullptr)
-		{
-			Cast<AInteractable>(m_PlanningBrain->GetFocus())->Interact(this);
-			State newState;
-			newState.tile = startState.tile;
-			newState.actionState = ActionState::Interacting;
-			m_CurrentAction.actionType = Function::NullAction;
-			return newState;
-		}
-		else
-		{
-			// exit action
-			State newState;
-			newState.tile = startState.tile;
-			newState.actionState = endState.actionState;
-			m_CurrentAction.actionType = Function::NullAction;
-			return newState;
-		}
-		return NULLState();
-	}
-	// exit action
+	m_PlanningBrain->FindClosestInteractable(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y })->Interact(this);
 	State newState;
 	newState.tile = startState.tile;
 	newState.actionState = ActionState::DoingNothing;
@@ -263,6 +253,15 @@ State ANPC::Interact(State startState, State endState)
 
 }
 
+State ANPC::Ability(State startState, State endState)
+{
+	State newState;
+	newState.tile = startState.tile;
+	newState.actionState = ActionState::DoingNothing;
+	m_CurrentAction.actionType = Function::NullAction;
+	return newState;
+
+}
 
 void ANPC::CallAction(Action action)
 {
@@ -297,6 +296,18 @@ void ANPC::CallAction(Action action)
 		}
 		break;
 	case Function::InteractFunction:
+		currentState = Interact(action.startingState, action.endState);
+		if (currentState == NULLState())
+		{
+			// do nothing, action is still runnning
+		}
+		else
+		{
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
+			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
+		}
+	case Function::AbilityFunction:
 		currentState = Interact(action.startingState, action.endState);
 		if (currentState == NULLState())
 		{
