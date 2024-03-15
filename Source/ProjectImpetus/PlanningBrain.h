@@ -228,7 +228,7 @@ private:
 	TArray<QNode> m_QValues; // all Q values according to world state
 
 	float m_LearningRate{ 0.7f };
-	float m_ExplorationRate{ 0.3f };
+	float m_ExplorationRate{ 0.5f };
 	int32 m_MaxWalkLength{ 10 }; // number of past actions to be stored max
 
 	TArray<QNode> m_PastActionsQNodes;
@@ -283,7 +283,7 @@ public:
 	FString GenerateRandomAction();
 	void CreateNextRandomAction(); // random action
 
-	void CreateQValues(); // create Q values for this NPC
+	void CreateQValues(WorldState state); // create Q values for this NPC
 
 	float EvaluateAction(); // pass in Q nodes action, Q nodes world state and resultant (current) world state as parameter
 	bool WasLastActionSignificant(); // store last action and last world state to check for significant actions

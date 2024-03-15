@@ -46,7 +46,7 @@ void ANPC::Tick(float DeltaTime)
 
 	if (m_Health <= 0.0f)
 	{
-		m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+		//m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
 		Death();
 		return;
 	}
@@ -65,33 +65,56 @@ void ANPC::Tick(float DeltaTime)
 
 void ANPC::Death()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Black, TEXT("I am dead"));
+	//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Black, TEXT("I am dead"));
 	Respawn();
 }
 
 void ANPC::Respawn()
 {
-	// set spawn tile (random reception tile)
-
-	TArray<AActor*> Tiles;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
-	for (AActor* tile : Tiles)
+	// set spawn tile (random reception or cell tile depending on type of NPC)
+	if (m_Threat)
 	{
-		if (Cast<ATile3D>(tile)->m_FloorType == FloorType::ReceptionFloor)
+		TArray<AActor*> Tiles;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
+		for (AActor* tile : Tiles)
 		{
-			// reset properties
-			State newState;
-			m_CurrentAction.actionType = Function::NullAction;
-			m_CurrentAction.direction = FVector2D{ 0, 0 };
-			FVector2D npcLocation = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-			newState.tile = (Cast<ATile3D>(tile));
-			newState.tile->SetType(TileType::NPC);
-			newState.actionState = ActionState::DoingNothing;
-			m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
-			m_Health = m_MaxHealth;
-			return;
+			if (Cast<ATile3D>(tile)->m_FloorType == FloorType::CellFloor)
+			{
+				// reset properties
+				State newState;
+				m_CurrentAction.actionType = Function::NullAction;
+				FVector2D npcLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
+				newState.tile = (Cast<ATile3D>(tile));
+				newState.tile->SetType(TileType::NPC);
+				newState.actionState = ActionState::DoingNothing;
+				m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
+				m_Health = m_MaxHealth;
+				return;
+			}
 		}
-	}	
+	}
+	else
+	{
+		TArray<AActor*> Tiles;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
+		for (AActor* tile : Tiles)
+		{
+			if (Cast<ATile3D>(tile)->m_FloorType == FloorType::ReceptionFloor)
+			{
+				// reset properties
+				State newState;
+				m_CurrentAction.actionType = Function::NullAction;
+				FVector2D npcLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
+				newState.tile = (Cast<ATile3D>(tile));
+				newState.tile->SetType(TileType::NPC);
+				newState.actionState = ActionState::DoingNothing;
+				m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
+				m_Health = m_MaxHealth;
+				return;
+			}
+		}
+	}
+	
 }
 
 // Called to bind functionality to input

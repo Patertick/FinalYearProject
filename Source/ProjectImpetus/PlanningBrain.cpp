@@ -479,9 +479,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			}
 			// evaluate last actions effect on world state
 
-			CreateQValues();
-
-			if (WasLastActionSignificant() || m_PastActionsQNodes.Num() >= m_MaxWalkLength)
+			if (m_PastActionsQNodes.Num() >= m_MaxWalkLength)
 			{
 				float actionFitness = EvaluateAction(); // add to q values using evaluation
 				//actionFitness *= m_LearningRate;
@@ -516,6 +514,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 				CreateNextRandomAction();
 			}		
 
+			CreateQValues(m_MapStateManager->GetMapState()); // create q nodes for this state
 		}
 	}
 	else
@@ -560,7 +559,7 @@ void UPlanningBrain::CreateNextRandomAction()
 			}
 		}
 		if (attackTile.ref == nullptr || !TileHasNPC(attackTile.ref) || 
-			FindClosestNPC(FVector2D{ attackTile.ref->GetActorLocation().X, attackTile.ref->GetActorLocation().Y })->m_Threat == false) return;
+			FindClosestNPC(FVector2D{ attackTile.ref->GetActorLocation().X, attackTile.ref->GetActorLocation().Y })->m_Threat == m_NPCRef->m_Threat) return;
 		else
 		{
 			// send attack action to queue
@@ -655,7 +654,6 @@ void UPlanningBrain::CreateNextRandomAction()
 				newNode.worldState = m_MapStateManager->GetMapState();
 			}
 			m_PastActionsQNodes.Add(newNode);
-			
 			AppendMapStateManager(m_InitialState.tile, newNode.action);
 			// add action to queue
 			m_ActionQueue.InsertItem(newAction);
@@ -800,76 +798,62 @@ void UPlanningBrain::CreateNextRandomAction()
 
 float UPlanningBrain::EvaluateAction()
 {
-	// check health from first state to current state
-	// how much damage was taken?
-
-	float damageTaken{ 0.0f };
-
-	for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
+	if (m_NPCRef->m_Threat)
 	{
-		if (oldStates.NPCIndex == m_NPCRef->GetIndex())
+		// check health of all other npcs 
+		// how much damage was dealt?
+
+
+		float damageDealtTotal{ 0.0f };
+		int32 count{ 0 };
+
+		for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
 		{
-			for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
+			if (oldStates.NPCIndex != m_NPCRef->GetIndex())
 			{
-				if (newStates.NPCIndex == m_NPCRef->GetIndex())
+				for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
 				{
-					damageTaken = abs(newStates.npcHealth - oldStates.npcHealth);
-					damageTaken /= m_NPCRef->GetMaxHealth();
-					// divide by max health to enforce between 0.0f and 1.0f
-				}
-			}
-		}
-	}
-
-	// check health of all other npcs 
-	// how much damage was dealt?
-
-	float damageDealtTotal{ 0.0f };
-	int32 count{ 0 };
-
-	for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
-	{
-		if (oldStates.NPCIndex != m_NPCRef->GetIndex())
-		{
-			for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
-			{
-				if (newStates.NPCIndex != m_NPCRef->GetIndex())
-				{
-					float damageDealt;
-					damageDealt = abs(newStates.npcHealth - oldStates.npcHealth);
-					damageDealt /= m_NPCRef->GetMaxHealth();
-					damageDealtTotal += damageDealt;
-					count++;
-					// divide by max health to enforce between 0.0f and 1.0f
-				}
-			}
-		}
-	}
-
-	float onSameTileType{ 0.5f };
-
-	for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
-	{
-		if (oldStates.NPCIndex == m_NPCRef->GetIndex())
-		{
-			for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
-			{
-				if (newStates.NPCIndex == m_NPCRef->GetIndex())
-				{
-					if (newStates.tileRef->m_FloorType == oldStates.tileRef->m_FloorType)
+					if (newStates.NPCIndex != m_NPCRef->GetIndex())
 					{
-						onSameTileType = 1.0f;
+						float damageDealt;
+						damageDealt = abs(newStates.npcHealth - oldStates.npcHealth);
+						damageDealt /= m_NPCRef->GetMaxHealth();
+						damageDealtTotal += damageDealt;
+						count++;
+						// divide by max health to enforce between 0.0f and 1.0f
 					}
 				}
 			}
 		}
+
+		return damageDealtTotal / count; // higher differences in health mean higher values for these actions
 	}
+	else
+	{
+		// check health from first state to current state
+		// how much damage was taken?
 
+		float damageTaken{ 0.0f };
 
-	// divide damage dealt by number of npcs checked
-	damageDealtTotal /= count;
+		for (const NPCState& oldStates : m_PastActionsQNodes[0].worldState.npcStates)
+		{
+			if (oldStates.NPCIndex == m_NPCRef->GetIndex())
+			{
+				for (const NPCState& newStates : m_MapStateManager->GetMapState().npcStates)
+				{
+					if (newStates.NPCIndex == m_NPCRef->GetIndex())
+					{
+						damageTaken =abs(newStates.npcHealth - oldStates.npcHealth);
+						damageTaken /= m_NPCRef->GetMaxHealth();
+						// divide by max health to enforce between 0.0f and 1.0f
+					}
+				}
+			}
+		}
 
-	return damageTaken * damageDealtTotal * onSameTileType; // a perfect set of actions is one that results in every single other NPC being killed and this NPC taking no damage, obviously unrealistic, impossible even, but thats fine for now
+		return  1.0f - damageTaken; // return 1 minus the difference between health values, if theres a high difference value will be lower, if theres a low difference then value with be higher
+	}
+	return 0.0f;
 }
 
 bool UPlanningBrain::WasLastActionSignificant()
@@ -944,6 +928,7 @@ void UPlanningBrain::CreateNextAction()
 	newNode.worldState = m_MapStateManager->GetMapState();
 	AppendMapStateManager(m_InitialState.tile, newNode.action);
 	m_PastActionsQNodes.Add(newNode);
+	
 	
 
 	switch (highestValueNode.action)
@@ -1040,6 +1025,8 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasNPC(tile.ref) ||
+					FindClosestNPC(FVector2D{ tile.ref->GetActorLocation().X, tile.ref->GetActorLocation().Y })->m_Threat == m_NPCRef->m_Threat) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1056,6 +1043,8 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasNPC(tile.ref) ||
+					FindClosestNPC(FVector2D{ tile.ref->GetActorLocation().X, tile.ref->GetActorLocation().Y })->m_Threat == m_NPCRef->m_Threat) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1072,6 +1061,8 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasNPC(tile.ref) ||
+					FindClosestNPC(FVector2D{ tile.ref->GetActorLocation().X, tile.ref->GetActorLocation().Y })->m_Threat == m_NPCRef->m_Threat) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1088,6 +1079,8 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasNPC(tile.ref) ||
+					FindClosestNPC(FVector2D{ tile.ref->GetActorLocation().X, tile.ref->GetActorLocation().Y })->m_Threat == m_NPCRef->m_Threat) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1104,6 +1097,8 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasNPC(tile.ref) ||
+					FindClosestNPC(FVector2D{ tile.ref->GetActorLocation().X, tile.ref->GetActorLocation().Y })->m_Threat == m_NPCRef->m_Threat) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1120,6 +1115,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasInteractable(tile.ref)) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1136,6 +1132,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasInteractable(tile.ref)) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1152,6 +1149,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasInteractable(tile.ref)) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1168,6 +1166,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasInteractable(tile.ref)) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1184,6 +1183,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || !TileHasInteractable(tile.ref)) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1200,6 +1200,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || tile.ref->GetType() != TileType::None) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1216,6 +1217,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || tile.ref->GetType() != TileType::None) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1232,6 +1234,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || tile.ref->GetType() != TileType::None) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1248,6 +1251,7 @@ void UPlanningBrain::CreateNextAction()
 				// this is the direction we want
 				newAction.direction = FVector2D{ tile.xDir, tile.yDir };
 				newAction.endState.tile = tile.ref;
+				if (tile.ref == nullptr || tile.ref->GetType() != TileType::None) return;
 				m_ActionQueue.InsertItem(newAction);
 				return;
 			}
@@ -1259,7 +1263,7 @@ void UPlanningBrain::CreateNextAction()
 }
 
 
-void UPlanningBrain::CreateQValues()
+void UPlanningBrain::CreateQValues(WorldState state)
 {
 	// find current map state
 	// find current action
@@ -1269,22 +1273,95 @@ void UPlanningBrain::CreateQValues()
 		return;
 	}
 	
-	QNode newQNode;
-	newQNode.action = m_PastActionsQNodes[m_PastActionsQNodes.Num() - 1].action;
-	newQNode.value = 0.0f; // dont check for values
-	newQNode.worldState = m_MapStateManager->GetMapState();
 
 	// go through Q values, does this already exist?
 	for (QNode node : m_QValues)
 	{
-		if (node == newQNode)
+		if (state == node.worldState)
 		{
 			// yes, return
 			return;
 		}
 	}
-	 
-	// no, create new Q node
+
+	// create a node for every action
+
+	QNode newQNode;
+	newQNode.action = NPCAction::NPCAbilityDown;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAbilityLeft;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAbilityRight;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAbilityUp;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAbilitySelf;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAttackDown;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAttackLeft;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAttackRight;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAttackUp;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCAttackSelf;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCInteractDown;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCInteractLeft;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCInteractRight;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCInteractUp;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCInteractSelf;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCMoveDown;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCMoveLeft;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCMoveRight;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
+	m_QValues.Add(newQNode);
+	newQNode.action = NPCAction::NPCMoveUp;
+	newQNode.value = 0.5f;
+	newQNode.worldState = state;
 	m_QValues.Add(newQNode);
 }
 
@@ -1406,7 +1483,7 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 
 bool UPlanningBrain::InList(const TArray<FNode>& list, ATile3D* tile)
 {
-	for (FNode node : list)
+	for (const FNode& node : list)
 	{
 		if (node.associatedTile == tile)
 		{

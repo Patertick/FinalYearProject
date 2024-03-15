@@ -68,5 +68,5 @@ void AInteractable::Tick(float DeltaTime)
 
 void AInteractable::Interact(ANPC* interactingNPC)
 {
-	GEngine->AddOnScreenDebugMessage(5, 5.0f, FColor::White, TEXT("I have been interacted with"));
+	//GEngine->AddOnScreenDebugMessage(5, 5.0f, FColor::White, TEXT("I have been interacted with"));
 }
