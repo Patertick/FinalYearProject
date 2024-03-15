@@ -146,6 +146,18 @@ void UMemoryBrain::UpdateObjectsInMemory(TArray<AActor*> actorsInView)
 	
 }
 
+bool UMemoryBrain::IsNPCInMemory()
+{
+	for (ActorSnapShot actor : m_ObjectsInMemory)
+	{
+		if (Cast<ANPC>(actor.objectRef) != nullptr)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 Quality UMemoryBrain::GenerateRandomQuality()
 {
 	int32 randomNum;

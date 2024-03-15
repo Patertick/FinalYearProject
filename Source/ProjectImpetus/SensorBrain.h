@@ -34,7 +34,6 @@ private:
 	TArray<AActor*> m_ObjectsWithinView;
 	View m_View;
 
-	TArray<AActor*> m_ActorsInLevel;
 
 public:	
 	// Called every frame
@@ -48,6 +47,7 @@ public:
 	void SetMaxViewDistance(float newDistance) { m_View.maxDist = newDistance; }
 	bool IsNotObstructed(AActor* actor);
 	bool IsInView(AActor* actor);
+	bool IsNPCInView();
 
 		
 };

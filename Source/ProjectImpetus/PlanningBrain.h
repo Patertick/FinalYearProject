@@ -292,6 +292,8 @@ public:
 	void AddNPCToMapStateManager(int32 index, float health, FVector position);
 	void AppendMapStateManager(ATile3D* currentTile, NPCAction currentAction);
 
+	FVector2D GetDirection(ATile3D* startTile, ATile3D* endTile);
+	
 	// goal creation functions
 
 

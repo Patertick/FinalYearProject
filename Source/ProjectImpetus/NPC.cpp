@@ -44,9 +44,12 @@ void ANPC::Tick(float DeltaTime)
 
 	if (!ValidNPC()) return;
 
+	FString tempString = FString::SanitizeFloat(m_Health);
+
 	if (m_Health <= 0.0f)
 	{
-		//m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+		m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+		m_HasDied = true;
 		Death();
 		return;
 	}
@@ -65,54 +68,71 @@ void ANPC::Tick(float DeltaTime)
 
 void ANPC::Death()
 {
-	//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Black, TEXT("I am dead"));
-	Respawn();
+	// has this scenario ended?
+	this->SetActorEnableCollision(false);
+	this->SetActorHiddenInGame(true);
+	//Respawn();
 }
 
 void ANPC::Respawn()
 {
+	m_HasDied = false;
+	m_HasEscaped = false;
+	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Respawn"));
+	this->SetActorEnableCollision(true);
+	this->SetActorHiddenInGame(false);
 	// set spawn tile (random reception or cell tile depending on type of NPC)
 	if (m_Threat)
 	{
 		TArray<AActor*> Tiles;
+		TArray<ATile3D*> cellTiles;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
 		for (AActor* tile : Tiles)
 		{
 			if (Cast<ATile3D>(tile)->m_FloorType == FloorType::CellFloor)
 			{
-				// reset properties
-				State newState;
-				m_CurrentAction.actionType = Function::NullAction;
-				FVector2D npcLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
-				newState.tile = (Cast<ATile3D>(tile));
-				newState.tile->SetType(TileType::NPC);
-				newState.actionState = ActionState::DoingNothing;
-				m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
-				m_Health = m_MaxHealth;
-				return;
+				cellTiles.Add(Cast<ATile3D>(tile));
 			}
 		}
+
+		int32 randomTile = FMath::RandRange(0, cellTiles.Num() - 1);
+		// reset properties
+		State newState;
+		m_CurrentAction.actionType = Function::NullAction;
+		FVector2D npcLocation = FVector2D{ cellTiles[randomTile]->GetActorLocation().X, cellTiles[randomTile]->GetActorLocation().Y};
+		newState.tile = (Cast<ATile3D>(cellTiles[randomTile]));
+		newState.tile->SetType(TileType::NPC);
+		newState.actionState = ActionState::DoingNothing;
+		m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
+		SetActorLocation(FVector(npcLocation.X, npcLocation.Y, 0.0f));
+		m_Health = m_MaxHealth;
+		return;
 	}
 	else
 	{
 		TArray<AActor*> Tiles;
+		TArray<ATile3D*> cellTiles;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
 		for (AActor* tile : Tiles)
 		{
 			if (Cast<ATile3D>(tile)->m_FloorType == FloorType::ReceptionFloor)
 			{
-				// reset properties
-				State newState;
-				m_CurrentAction.actionType = Function::NullAction;
-				FVector2D npcLocation = FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y };
-				newState.tile = (Cast<ATile3D>(tile));
-				newState.tile->SetType(TileType::NPC);
-				newState.actionState = ActionState::DoingNothing;
-				m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
-				m_Health = m_MaxHealth;
-				return;
+				cellTiles.Add(Cast<ATile3D>(tile));
 			}
 		}
+
+		int32 randomTile = FMath::RandRange(0, cellTiles.Num() - 1);
+		// reset properties
+		State newState;
+		m_CurrentAction.actionType = Function::NullAction;
+		FVector2D npcLocation = FVector2D{ cellTiles[randomTile]->GetActorLocation().X, cellTiles[randomTile]->GetActorLocation().Y };
+		newState.tile = (Cast<ATile3D>(cellTiles[randomTile]));
+		newState.tile->SetType(TileType::NPC);
+		newState.actionState = ActionState::DoingNothing;
+		m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
+		SetActorLocation(FVector(npcLocation.X, npcLocation.Y, 0.0f));
+		m_Health = m_MaxHealth;
+		return;
 	}
 	
 }
@@ -256,6 +276,7 @@ State ANPC::Move(State startState, State endState)
 
 State ANPC::Attack(State startState, State endState)
 {
+
 	UGameplayStatics::ApplyDamage(m_PlanningBrain->FindClosestNPC(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }), m_Damage, nullptr, this, NULL);
 	State newState;
 	newState.tile = startState.tile;
@@ -280,6 +301,8 @@ State ANPC::Ability(State startState, State endState)
 {
 	State newState;
 	newState.tile = startState.tile;
+	endState.tile->m_FloorType = FloorType::BrokenWallFloor; // will shrink the wall into a walkable floor tile
+	endState.tile->SetType(TileType::None); // can now walk on this tile
 	newState.actionState = ActionState::DoingNothing;
 	m_CurrentAction.actionType = Function::NullAction;
 	return newState;
@@ -331,7 +354,7 @@ void ANPC::CallAction(Action action)
 			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
 		}
 	case Function::AbilityFunction:
-		currentState = Interact(action.startingState, action.endState);
+		currentState = Ability(action.startingState, action.endState);
 		if (currentState == NULLState())
 		{
 			// do nothing, action is still runnning

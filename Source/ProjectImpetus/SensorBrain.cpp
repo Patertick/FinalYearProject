@@ -21,11 +21,6 @@ void USensorBrain::BeginPlay()
 {
 	Super::BeginPlay();
 	// ...
-
-	// get all actors in level
-	TArray<AActor*> Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), Actors);
-	m_ActorsInLevel = Actors;
 	
 }
 
@@ -64,8 +59,12 @@ void USensorBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 		//	}
 		//}
 
+		// get all actors in level
+		TArray<AActor*> Actors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), Actors);
+
 		m_ObjectsWithinView.Empty();
-		for (AActor* actor : m_ActorsInLevel)
+		for (AActor* actor : Actors)
 		{
 			if (IsInView(actor) && actor != m_NPCRef && IsNotObstructed(actor))
 			{
@@ -100,6 +99,18 @@ void USensorBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 	}
 
 	// ...
+}
+
+bool USensorBrain::IsNPCInView()
+{
+	for (AActor* actor : m_ObjectsWithinView)
+	{
+		if (Cast<ANPC>(actor) != nullptr)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool USensorBrain::IsNotObstructed(AActor* actor)

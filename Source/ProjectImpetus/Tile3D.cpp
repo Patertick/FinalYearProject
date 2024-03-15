@@ -75,7 +75,7 @@ void ATile3D::FindConnectedTiles()
 // Called every frame
 void ATile3D::Tick(float DeltaTime)
 {
-	//Super::Tick(DeltaTime);
+	Super::Tick(DeltaTime);
 	/*int count{ 0 };
 	if (m_Type == TileType::NPC)
 	{

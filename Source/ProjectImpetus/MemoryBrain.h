@@ -84,6 +84,8 @@ public:
 
 	TArray<ActorSnapShot> GetObjectsInMemory() { return m_ObjectsInMemory; }
 
+	bool IsNPCInMemory();
+
 
 	UFUNCTION(BlueprintCallable, Category = Qualities)
 		TArray<TEnumAsByte<Quality>> GetQualities() { return m_Qualities; }

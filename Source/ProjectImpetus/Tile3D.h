@@ -13,7 +13,7 @@ enum TileType
 	Wall      UMETA(DisplayName = "Wall on this tile"),
 	Object   UMETA(DisplayName = "Object on this tile"),
 	NPC   UMETA(DisplayName = "NPC on this tile"),
-	Hazard   UMETA(DisplayName = "Hazard on this tile"),
+	Escape   UMETA(DisplayName = "Can escape compound from this tile"),
 };
 
 UENUM()
@@ -26,6 +26,8 @@ enum FloorType
 	OfficeFloor UMETA(DisplayName = "Office floor tile"),
 	CellFloor UMETA(DisplayName = "Cell floor tile"),
 	ResearchRoomFloor UMETA(DisplayName = "Research Room floor tile"),
+	BrokenWallFloor UMETA(DisplayName = "Broken wall floor tile"),
+	DirtTile UMETA(DisplayName = "Dirt floor tile"),
 	NotAFloor UMETA(DisplayName = "Not a floor tile"),
 };
 

@@ -120,6 +120,9 @@ private:
 
 	int32 m_Index{ 0 };
 
+	bool m_HasEscaped{ false };
+	bool m_HasDied{ false };
+
 	// sensory variables
 
 	float m_FieldOfView{ 90.0f };
@@ -130,7 +133,7 @@ private:
 
 	const float KTILEMAXDISTANCE{ 150.0f }; // max distance between tiles (100x100x100)
 
-	float m_WalkSpeed{ 20.0f };
+	float m_WalkSpeed{ 2.0f };
 
 	float m_FollowRange{ KTILEMAXDISTANCE * 2 };
 
@@ -234,8 +237,13 @@ public:
 	// Death and respawn functions
 
 	void Death();
-	void Respawn();
+	UFUNCTION(BlueprintCallable, Category = Respawn)
+		void Respawn();
 
+	UFUNCTION(BlueprintCallable, Category = HasEscaped)
+		bool GetHasEscaped() { return m_HasEscaped || !m_Threat; } // if not a threat npc this will always return true (so as to ignore their values)
+	UFUNCTION(BlueprintCallable, Category = HasEscaped)
+		bool GetHasDied() { return m_HasDied; }
 
 	// memory functions
 
@@ -265,6 +273,14 @@ public:
 	float GetMaxHealth() { return m_MaxHealth; }
 
 	float GetHealth() { return m_Health; }
+
+	bool CallIsNPCInMemory() { return m_MemoryBrain->IsNPCInMemory(); }
+
+	void ThisNPCEscaped() {
+		m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
+		m_HasEscaped = true; // has escaped
+		Death(); // kill npc
+	}
 
 	// Goal creation getters
 
