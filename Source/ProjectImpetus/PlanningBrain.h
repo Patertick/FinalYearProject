@@ -233,6 +233,13 @@ private:
 
 	TArray<QNode> m_PastActionsQNodes;
 
+	// Genetic algorithm variables
+
+	TArray<Action> m_CurrentSetOfActions;
+	TArray<Action> m_MutatedSetOfActions;
+
+	int32 m_StepsBeforeEndOfScenario{ 0 };
+
 	// state manager
 
 	ANPCStateManager* m_MapStateManager{ nullptr };
@@ -293,6 +300,11 @@ public:
 	void AppendMapStateManager(ATile3D* currentTile, NPCAction currentAction);
 
 	FVector2D GetDirection(ATile3D* startTile, ATile3D* endTile);
+
+	TArray<Action> GenerateArrayOfActions();
+
+	TArray<Action> MutateActions(const TArray<Action>& actions);
+	int32 EvaluateActions(const TArray<Action>& actions);
 	
 	// goal creation functions
 

@@ -56,7 +56,8 @@ public:
 		bool m_IsSeen{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FloorProperties)
 		TEnumAsByte<FloorType> m_FloorType { FloorType::NotAFloor };
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FloorProperties)
+		bool m_StartedAsFloor{ false };
 	
 
 protected:
@@ -69,6 +70,7 @@ private:
 	TArray<ConnectedTile> m_connectedTiles;
 	float m_Weight{ 1.0f };
 
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -76,8 +78,31 @@ public:
 		void SetType(TileType newType) { m_Type = newType; }
 	UFUNCTION(BlueprintCallable, Category = Startup)
 		void FindConnectedTiles();
+	UFUNCTION(BlueprintCallable, Category = Get)
+		TEnumAsByte<TileType> GetType() { return m_Type; }
 
-	TileType GetType() { return m_Type; }
+	UFUNCTION(BlueprintCallable, Category = Turn)
+		void TurnToWall();
+	UFUNCTION(BlueprintCallable, Category = Turn)
+		void TurnToFloor();
+	UFUNCTION(BlueprintCallable, Category = ResetTile)
+		void Reset() {
+		if (m_StartedAsFloor) {
+			TurnToFloor();
+			if (m_FloorType == FloorType::DirtTile)
+			{
+				m_Type = TileType::Escape;
+			}
+			else
+			{
+				m_Type = TileType::None;
+			}
+		}
+		else {
+			TurnToWall();
+			m_Type = TileType::Wall;
+		}
+	}
 
 	TArray<ConnectedTile> GetConnectedTiles() { return m_connectedTiles; }
 

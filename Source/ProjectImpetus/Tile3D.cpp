@@ -28,10 +28,23 @@ void ATile3D::BeginPlay()
 
 }
 
+void ATile3D::TurnToFloor()
+{
+	SetActorRelativeScale3D(FVector{ 1.0f, 1.0f, 1.0f });
+}
+
+void ATile3D::TurnToWall()
+{
+	SetActorRelativeScale3D(FVector{ 1.0f, 1.0f, 5.0f });
+}
+
 void ATile3D::FindConnectedTiles()
 {
 	TArray<AActor*> Tiles;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
+
+
+	GEngine->AddOnScreenDebugMessage(2, 15.0f, FColor::Red, TEXT("RUN"));
 
 	// find adjacent tiles (within 150 units counts as adjacent)
 	for (AActor* tile : Tiles)
@@ -75,7 +88,7 @@ void ATile3D::FindConnectedTiles()
 // Called every frame
 void ATile3D::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
+	//Super::Tick(DeltaTime);
 	/*int count{ 0 };
 	if (m_Type == TileType::NPC)
 	{

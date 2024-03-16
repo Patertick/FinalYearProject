@@ -123,6 +123,11 @@ private:
 	bool m_HasEscaped{ false };
 	bool m_HasDied{ false };
 
+	ATile3D* m_StartTile{ nullptr };
+
+
+	bool m_EndOfScenario{ false };
+
 	// sensory variables
 
 	float m_FieldOfView{ 90.0f };
@@ -197,6 +202,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Run)
 		void RunQLearning() { m_RunQLearning = true; }
+	UFUNCTION(BlueprintCallable, Category = Start)
+		void SetStartTile(ATile3D* startTile) { m_StartTile = startTile; }
+
+	ATile3D* GetStartTile() { return m_StartTile; }
 
 	// damage functions
 	UFUNCTION(BlueprintCallable, Category = Damage)
@@ -239,6 +248,8 @@ public:
 	void Death();
 	UFUNCTION(BlueprintCallable, Category = Respawn)
 		void Respawn();
+
+	bool ShouldRunTick() { return m_HasEscaped && m_HasDied; } // if either are false, then the tick will not run
 
 	UFUNCTION(BlueprintCallable, Category = HasEscaped)
 		bool GetHasEscaped() { return m_HasEscaped || !m_Threat; } // if not a threat npc this will always return true (so as to ignore their values)
@@ -295,6 +306,9 @@ public:
 	TArray<ActorSnapShot> GetObjectsFromMemory() { return m_MemoryBrain->GetObjectsInMemory(); }
 
 	bool CallIsActionQueueEmpty() { return m_PlanningBrain->IsActionQueueEmpty(); }
+
+	bool GetEndOfScenario() { return m_EndOfScenario; }
+	void SetEndOfScenario(bool newVal) { m_EndOfScenario = newVal; }
 
 	// name generation & getter
 

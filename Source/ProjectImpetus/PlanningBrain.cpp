@@ -115,7 +115,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (m_NPCRef->GetHasEscaped()) return;
+	if (m_NPCRef->ShouldRunTick()) return;
 
 	if (m_NPCRef->GetDirective() == Directive::MoveHere)
 	{
@@ -475,6 +475,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		}
 		else
 		{
+			m_StepsBeforeEndOfScenario++;
 			// is this NPC an enemy?
 			if (m_NPCRef->m_Threat)
 			{
@@ -484,7 +485,6 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 					m_NPCRef->ThisNPCEscaped();
 					return;
 				}
-
 
 				// is NPC in view?
 				if (m_NPCRef->CallIsNPCInMemory())
@@ -559,6 +559,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 					}
 
 					if (closestTile == nullptr) return;
+
 
 					// is the next step tile a floor tile?
 					if (closestTile->GetType() == TileType::None)
@@ -640,9 +641,10 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 						}
 					}
 
+
 					if (closestDirtTile == nullptr) return;
 
-					// find closest adjacent tile to closest NPC
+					// find closest adjacent tile to closest Dirt tile
 
 					ATile3D* closestTile = nullptr;
 
@@ -695,16 +697,42 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 			}
 			else
 			{
-				// no
-					// take last set of actions before enemy escaped
-					// mutate accordingly
-					// when enemy escapes
-					// evaluate actions
-					// was the new set of actions more successful?
-						// yes, override the old set of actions
-						// no, keep old set of actions
-			}
+				if (m_CurrentSetOfActions.Num() <= 0)
+				{
+					// generate random set of actions
+					TArray<Action> generatedSetOfActions = GenerateArrayOfActions();
+					// add to action queue
+					m_CurrentSetOfActions = generatedSetOfActions;
+					m_ActionQueue.InsertItems(m_CurrentSetOfActions);
+				}
 
+				// on end of scenario
+				if (m_NPCRef->GetEndOfScenario())
+				{
+					m_NPCRef->SetEndOfScenario(false);
+					// evaluate past actions success
+					if (m_MutatedSetOfActions.Num() <= 0)
+					{
+						// create mutated set of actions and add to action queue
+						m_MutatedSetOfActions = MutateActions(m_CurrentSetOfActions);
+						m_ActionQueue.InsertItems(m_MutatedSetOfActions);
+						return;
+					}
+
+					// was the new set of actions more successful?
+					if (EvaluateActions(m_MutatedSetOfActions) > EvaluateActions(m_CurrentSetOfActions))
+					{
+						// override the old set of actions
+						m_CurrentSetOfActions = m_MutatedSetOfActions;
+					}
+
+					// using current set of actions stored mutate it and add to action queue
+					m_MutatedSetOfActions = MutateActions(m_CurrentSetOfActions);
+					m_ActionQueue.InsertItems(m_MutatedSetOfActions);
+					return;
+				}
+
+			}
 
 
 		}
@@ -715,6 +743,273 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	}
 
 
+}
+
+TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
+{
+	TArray<Action> newActionArray = actions;
+	// convert 25% of the actions to new actions
+	for (int i = 0; i < actions.Num() / 4; i++)
+	{
+		// get random index
+		int32 randomIndex = FMath::RandRange(0, actions.Num() - 1);
+		// convert to random action
+		GenerateRandomAction();
+
+		FString action = GenerateRandomAction();
+		State currentState;
+		if (i == 0)
+		{
+			currentState.actionState = ActionState::DoingNothing;
+			currentState.tile = m_NPCRef->GetStartTile();
+		}
+		else
+		{
+			currentState.actionState = actions[i - 1].endState.actionState;
+			currentState.tile = actions[i - 1].endState.tile;
+		}
+
+		if (action.GetCharArray()[0] == 'A')
+		{
+			ConnectedTile attackTile{ nullptr };
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					attackTile.ref = tile.ref;
+					attackTile.xDir = tile.xDir;
+					attackTile.yDir = tile.yDir;
+					break;
+				}
+			}
+
+			// send attack action to queue
+			Action newAction;
+			newAction.actionType = Function::AttackFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::Attacking;
+			newAction.endState.tile = attackTile.ref;
+			newAction.direction = FVector2D{ attackTile.xDir, attackTile.yDir };
+			newActionArray[randomIndex] = newAction;
+
+		}
+		else if (action.GetCharArray()[0] == 'M')
+		{
+			ConnectedTile moveTile{ nullptr };
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					moveTile.ref = tile.ref;
+					moveTile.xDir = tile.xDir;
+					moveTile.yDir = tile.yDir;
+					break;
+				}
+			}
+
+			// send attack action to queue
+			Action newAction;
+			newAction.actionType = Function::MoveFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::MovingToLocation;
+			newAction.endState.tile = moveTile.ref;
+			newAction.direction = FVector2D{ moveTile.xDir, moveTile.yDir };
+			newActionArray[randomIndex] = newAction;
+
+
+		}
+		else if (action.GetCharArray()[0] == 'I')
+		{
+			ConnectedTile interactTile{ nullptr };
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					interactTile.ref = tile.ref;
+					interactTile.xDir = tile.xDir;
+					interactTile.yDir = tile.yDir;
+					break;
+				}
+			}
+
+			// send attack action to queue
+			Action newAction;
+			newAction.actionType = Function::InteractFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::Interacting;
+			newAction.endState.tile = interactTile.ref;
+			newAction.direction = FVector2D{ interactTile.xDir, interactTile.yDir };
+			newActionArray[randomIndex] = newAction;
+
+		}
+		else if (action.GetCharArray()[0] == 'S')
+		{
+			ConnectedTile abilityTile{ nullptr };
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					abilityTile.ref = tile.ref;
+					abilityTile.xDir = tile.xDir;
+					abilityTile.yDir = tile.yDir;
+					break;
+				}
+
+			}
+			Action newAction;
+			newAction.actionType = Function::AbilityFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::UsingAbility;
+			newAction.endState.tile = abilityTile.ref;
+			newAction.direction = FVector2D{ abilityTile.xDir, abilityTile.yDir };
+			newActionArray[randomIndex] = newAction;
+
+		}
+	
+
+	}
+	return newActionArray;
+}
+
+int32 UPlanningBrain::EvaluateActions(const TArray<Action>& actions)
+{
+	return m_StepsBeforeEndOfScenario;
+}
+
+TArray<Action> UPlanningBrain::GenerateArrayOfActions()
+{
+	int32 randLength = FMath::RandRange(50, 100);
+	TArray<Action> newActionArray;
+	State currentState;
+	currentState.actionState = ActionState::DoingNothing;
+	currentState.tile = m_NPCRef->GetStartTile();
+	for (int i = 0; i < randLength; i++)
+	{
+		FString action = GenerateRandomAction();
+		if (action.GetCharArray()[0] == 'A')
+		{
+			ConnectedTile attackTile{ nullptr };
+
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					attackTile.ref = tile.ref;
+					attackTile.xDir = tile.xDir;
+					attackTile.yDir = tile.yDir;
+					break;
+				}
+			}
+
+			// send attack action to queue
+			Action newAction;
+			newAction.actionType = Function::AttackFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::Attacking;
+			newAction.endState.tile = attackTile.ref;
+			newAction.direction = FVector2D{ attackTile.xDir, attackTile.yDir };
+			newActionArray.Add(newAction);
+
+		}
+		else if (action.GetCharArray()[0] == 'M')
+		{
+			ConnectedTile moveTile{ nullptr };
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					moveTile.ref = tile.ref;
+					moveTile.xDir = tile.xDir;
+					moveTile.yDir = tile.yDir;
+					break;
+				}
+			}
+
+			// send attack action to queue
+			Action newAction;
+			newAction.actionType = Function::MoveFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::MovingToLocation;
+			newAction.endState.tile = moveTile.ref;
+			newAction.direction = FVector2D{ moveTile.xDir, moveTile.yDir };
+			newActionArray.Add(newAction);
+			currentState.tile = newAction.endState.tile; // update current state
+
+
+		}
+		else if (action.GetCharArray()[0] == 'I')
+		{
+			ConnectedTile interactTile{ nullptr };
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					interactTile.ref = tile.ref;
+					interactTile.xDir = tile.xDir;
+					interactTile.yDir = tile.yDir;
+					break;
+				}
+			}
+
+			// send attack action to queue
+			Action newAction;
+			newAction.actionType = Function::InteractFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::Interacting;
+			newAction.endState.tile = interactTile.ref;
+			newAction.direction = FVector2D{ interactTile.xDir, interactTile.yDir };
+			newActionArray.Add(newAction);
+
+		}
+		else if (action.GetCharArray()[0] == 'S')
+		{
+			ConnectedTile abilityTile{ nullptr };
+			TArray<ConnectedTile> connectedTiles = currentState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
+			{
+				if (tile.direction.GetCharArray()[0] == action.GetCharArray()[1])
+				{
+					// this is the direction we want
+					abilityTile.ref = tile.ref;
+					abilityTile.xDir = tile.xDir;
+					abilityTile.yDir = tile.yDir;
+					break;
+				}
+			}
+
+			Action newAction;
+			newAction.actionType = Function::AbilityFunction;
+			newAction.startingState.actionState = currentState.actionState;
+			newAction.startingState.tile = currentState.tile;
+			newAction.endState.actionState = ActionState::UsingAbility;
+			newAction.endState.tile = abilityTile.ref;
+			newAction.direction = FVector2D{ abilityTile.xDir, abilityTile.yDir };
+			newActionArray.Add(newAction);
+
+		}
+	}
+	return newActionArray;
 }
 
 FVector2D UPlanningBrain::GetDirection(ATile3D* startTile, ATile3D* endTile)
@@ -957,71 +1252,72 @@ void UPlanningBrain::CreateNextRandomAction()
 	} 
 	else if (actionString.GetCharArray()[0] == 'S')
 	{
-	ConnectedTile abilityTile{ nullptr };
-	if (actionString.GetCharArray()[1] == 'n')
-	{
-		// no direction , do not find connected tiles
-		abilityTile.ref = m_InitialState.tile;
-		abilityTile.xDir = 0;
-		abilityTile.yDir = 0;
-	}
-	{
-		TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
-		for (ConnectedTile tile : connectedTiles)
+		ConnectedTile abilityTile{ nullptr };
+		if (actionString.GetCharArray()[1] == 'n')
 		{
-			if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
+			// no direction , do not find connected tiles
+			abilityTile.ref = m_InitialState.tile;
+			abilityTile.xDir = 0;
+			abilityTile.yDir = 0;
+		}
+		{
+			TArray<ConnectedTile> connectedTiles = m_InitialState.tile->GetConnectedTiles();
+			for (ConnectedTile tile : connectedTiles)
 			{
-				// this is the direction we want
-				abilityTile.ref = tile.ref;
-				abilityTile.xDir = tile.xDir;
-				abilityTile.yDir = tile.yDir;
-				break;
+				if (tile.direction.GetCharArray()[0] == actionString.GetCharArray()[1])
+				{
+					// this is the direction we want
+					abilityTile.ref = tile.ref;
+					abilityTile.xDir = tile.xDir;
+					abilityTile.yDir = tile.yDir;
+					break;
+				}
 			}
 		}
-	}
-	if (abilityTile.ref == nullptr) return;
-	else
-	{
-		// send attack action to queue
-		Action newAction;
-		QNode newNode;
-		newAction.actionType = Function::AbilityFunction;
-		newAction.startingState.actionState = m_InitialState.actionState;
-		newAction.startingState.tile = m_InitialState.tile;
-		newAction.endState.actionState = ActionState::UsingAbility;
-		newAction.endState.tile = abilityTile.ref;
-		newAction.direction = FVector2D{ abilityTile.xDir, abilityTile.yDir };
-		if (actionString.GetCharArray()[1] == 'u')
-		{
-			newNode.action = NPCAction::NPCAbilityUp;
-			newNode.worldState = m_MapStateManager->GetMapState();
-		}
-		else if (actionString.GetCharArray()[1] == 'r')
-		{
-			newNode.action = NPCAction::NPCAbilityRight;
-			newNode.worldState = m_MapStateManager->GetMapState();
-		}
-		else if (actionString.GetCharArray()[1] == 'l')
-		{
-			newNode.action = NPCAction::NPCAbilityLeft;
-			newNode.worldState = m_MapStateManager->GetMapState();
-		}
-		else if (actionString.GetCharArray()[1] == 'd')
-		{
-			newNode.action = NPCAction::NPCAbilityDown;
-			newNode.worldState = m_MapStateManager->GetMapState();
-		}
+		if (abilityTile.ref == nullptr) return;
 		else
 		{
-			newNode.action = NPCAction::NPCAbilitySelf;
-			newNode.worldState = m_MapStateManager->GetMapState();
+			// send attack action to queue
+			Action newAction;
+			QNode newNode;
+			newAction.actionType = Function::AbilityFunction;
+			newAction.startingState.actionState = m_InitialState.actionState;
+			newAction.startingState.tile = m_InitialState.tile;
+			newAction.endState.actionState = ActionState::UsingAbility;
+			newAction.endState.tile = abilityTile.ref;
+			newAction.direction = FVector2D{ abilityTile.xDir, abilityTile.yDir };
+			if (actionString.GetCharArray()[1] == 'u')
+			{
+				newNode.action = NPCAction::NPCAbilityUp;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'r')
+			{
+				newNode.action = NPCAction::NPCAbilityRight;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'l')
+			{
+				newNode.action = NPCAction::NPCAbilityLeft;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else if (actionString.GetCharArray()[1] == 'd')
+			{
+				newNode.action = NPCAction::NPCAbilityDown;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			else
+			{
+				newNode.action = NPCAction::NPCAbilitySelf;
+				newNode.worldState = m_MapStateManager->GetMapState();
+			}
+			m_PastActionsQNodes.Add(newNode);
+			AppendMapStateManager(m_InitialState.tile, newNode.action);
+			// add action to queue
+			m_ActionQueue.InsertItem(newAction);
 		}
-		m_PastActionsQNodes.Add(newNode);
-		AppendMapStateManager(m_InitialState.tile, newNode.action);
-		// add action to queue
-		m_ActionQueue.InsertItem(newAction);
+		// nothing happens for else no need to load action
 	}
-	}// nothing happens for else no need to load action
 } 
 
 float UPlanningBrain::EvaluateAction()
@@ -1739,7 +2035,7 @@ FString UPlanningBrain::GenerateRandomAction()
 
 	// generate action (move, attack or interact) (assert that actions are uppercase)
 
-	int32 randomAction = FMath::RandRange(0, 4);
+	int32 randomAction = FMath::RandRange(0, 3);
 
 	if (randomAction == 0)
 	{
@@ -1753,18 +2049,13 @@ FString UPlanningBrain::GenerateRandomAction()
 	{
 		outputString = outputString + "I"; // interact
 	}
-	else if (randomAction == 3)
+	else
 	{
 		outputString = outputString + "S"; // special ability
 	}
-	else
-	{
-		outputString = outputString + "N"; // Nothing
-	}
 
 	// generate random direction (assert that directions are lowercase)
-
-	int32 randomDirection = FMath::RandRange(0, 4);
+	int32 randomDirection = FMath::RandRange(0, 3);
 
 	if (randomDirection == 0)
 	{
@@ -1778,13 +2069,9 @@ FString UPlanningBrain::GenerateRandomAction()
 	{
 		outputString = outputString + "r"; // right
 	}
-	else if (randomDirection == 3)
-	{
-		outputString = outputString + "d"; // down
-	}
 	else
 	{
-		outputString = outputString + "n"; // no direction
+		outputString = outputString + "d"; // down
 	}
 
 	return outputString;
