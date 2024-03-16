@@ -115,7 +115,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (m_NPCRef->ShouldRunTick()) return;
+	if (m_NPCRef->GetHasDied()) return;
 
 	if (m_NPCRef->GetDirective() == Directive::MoveHere)
 	{
@@ -475,22 +475,32 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		}
 		else
 		{
-			m_StepsBeforeEndOfScenario++;
 			// is this NPC an enemy?
 			if (m_NPCRef->m_Threat)
 			{
-				// if this NPC is currently on a dirt tile, send escaped message to main NPC
-				if (FindClosestTile(FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y })->m_FloorType == FloorType::DirtTile)
+
+				TArray<AActor*> NPCs;
+				UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANPC::StaticClass(), NPCs);
+
+				TArray<ANPC*> friendlyNPC;
+				for (int i = 0; i < NPCs.Num(); i++)
 				{
-					m_NPCRef->ThisNPCEscaped();
-					return;
+					if (Cast<ANPC>(NPCs[i]) != nullptr)
+					{
+						if (!Cast<ANPC>(NPCs[i])->m_Threat)
+						{
+							friendlyNPC.Add(Cast<ANPC>(NPCs[i]));
+						}
+					}
 				}
 
 				// is NPC in view?
-				if (m_NPCRef->CallIsNPCInMemory())
+				if (friendlyNPC.Num() > 0)
 				{
+
 					// search adjacent tiles
 					TArray<ConnectedTile> adjacentTiles = m_InitialState.tile->GetConnectedTiles();
+					ConnectedTile newTile;
 					for (ConnectedTile tile : adjacentTiles)
 					{
 						// has adjacent tile got an NPC on it?
@@ -510,31 +520,36 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 					// find closest NPC in view
 
-					TArray<ActorSnapShot> actorsInView = m_NPCRef->GetObjectsFromMemory();
+					TArray<ANPC*> actorsInView = friendlyNPC;
 
 					AActor* closestActor = nullptr;
 
-					for (ActorSnapShot actor : actorsInView)
+					for (ANPC* actor : friendlyNPC)
 					{
-						if (Cast<ANPC>(actor.objectRef) != nullptr)
+						if (closestActor == nullptr)
 						{
-							if (closestActor == nullptr)
+							closestActor = actor;
+						}
+						else
+						{
+							float oldDistance = FVector2D::Distance(FVector2D{ closestActor->GetActorLocation().X, closestActor->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
+							float newDistance = FVector2D::Distance(FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
+							if (newDistance < oldDistance)
 							{
-								closestActor = actor.objectRef;
-							}
-							else
-							{
-								float oldDistance = FVector2D::Distance(FVector2D{ closestActor->GetActorLocation().X, closestActor->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
-								float newDistance = FVector2D::Distance(FVector2D{ actor.objectRef->GetActorLocation().X, actor.objectRef->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
-								if (newDistance < oldDistance)
-								{
-									closestActor = actor.objectRef;
-								}
+								closestActor = actor;
 							}
 						}
+
 					}
 
 					if (closestActor == nullptr) return;
+
+					if (FindClosestTile(FVector2D{ closestActor->GetActorLocation().X, closestActor->GetActorLocation().Y }) == FindClosestTile(FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y }))
+					{
+						// run attack function on tile then exit
+						UGameplayStatics::ApplyDamage(closestActor, 100.0f, nullptr, m_NPCRef, NULL); // instantly kill NPC
+						return;
+					}
 
 					// find closest adjacent tile to closest NPC
 
@@ -560,9 +575,8 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 					if (closestTile == nullptr) return;
 
-
 					// is the next step tile a floor tile?
-					if (closestTile->GetType() == TileType::None)
+					if (closestTile->GetType() != TileType::Wall)
 					{
 						// run move action towards this tile
 						Action newAction;
@@ -574,7 +588,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 						m_ActionQueue.InsertItem(newAction);
 						return;
 					}
-					else if (closestTile->GetType() == TileType::Wall)
+					else
 					{
 						// run ability action on this tile (turns wall tiles to floor tiles)
 						Action newAction;
@@ -592,103 +606,44 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 				}
 				else
 				{
-					// search adjacent tiles
+					// random move
 					TArray<ConnectedTile> adjacentTiles = m_InitialState.tile->GetConnectedTiles();
+					TArray<ATile3D*> traversableConnectedTiles;
 					for (ConnectedTile tile : adjacentTiles)
 					{
 						// is adjacent tile a dirt tile?
-						if (tile.ref->GetType() == TileType::Escape)
+						if (tile.ref->GetType() == TileType::None || tile.ref->GetType() == TileType::Escape)
 						{
-							// run move function on tile then despawn the enemy
-							Action newAction;
-							newAction.actionType = Function::MoveFunction;
-							newAction.direction = GetDirection(m_InitialState.tile, tile.ref);
-							newAction.startingState = m_InitialState;
-							newAction.endState.tile = tile.ref;
-							newAction.endState.actionState = ActionState::MovingToLocation;
-							m_ActionQueue.InsertItem(newAction);
-							return;
+							traversableConnectedTiles.Add(tile.ref);
 						}
 					}
 
-					// find closest dirt tile in level
+					ATile3D* randomTile;
 
-					TArray<AActor*> Tiles;
-					UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
+					randomTile = traversableConnectedTiles[FMath::RandRange(0, traversableConnectedTiles.Num() - 1)];
 
-					AActor* closestDirtTile = nullptr;
-
-					for (AActor* tile : Tiles)
-					{
-						if (Cast<ATile3D>(tile) != nullptr)
-						{
-							if (Cast<ATile3D>(tile)->GetType() == TileType::Escape)
-							{
-								if (closestDirtTile == nullptr)
-								{
-									closestDirtTile = tile;
-								}
-								else
-								{
-									float oldDistance = FVector2D::Distance(FVector2D{ closestDirtTile->GetActorLocation().X, closestDirtTile->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
-									float newDistance = FVector2D::Distance(FVector2D{ tile->GetActorLocation().X, tile->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
-									if (newDistance < oldDistance)
-									{
-										closestDirtTile = tile;
-									}
-								}
-							}
-						}
-					}
-
-
-					if (closestDirtTile == nullptr) return;
-
-					// find closest adjacent tile to closest Dirt tile
-
-					ATile3D* closestTile = nullptr;
-
-					for (ConnectedTile tile : adjacentTiles)
-					{
-						if (closestTile == nullptr)
-						{
-							closestTile = tile.ref;
-						}
-						else
-						{
-							float oldDistance = FVector2D::Distance(FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y }, FVector2D{ closestDirtTile->GetActorLocation().X, closestDirtTile->GetActorLocation().Y });
-							float newDistance = FVector2D::Distance(FVector2D{ tile.ref->GetActorLocation().X, tile.ref->GetActorLocation().Y }, FVector2D{ closestDirtTile->GetActorLocation().X, closestDirtTile->GetActorLocation().Y });
-							if (newDistance < oldDistance)
-							{
-								closestTile = tile.ref;
-							}
-						}
-
-					}
-
-					if (closestTile == nullptr) return;
 
 					// is the next step tile a floor tile?
-					if (closestTile->GetType() == TileType::None)
+					if (randomTile->GetType() == TileType::None)
 					{
 						// run move action towards this tile
 						Action newAction;
 						newAction.actionType = Function::MoveFunction;
-						newAction.direction = GetDirection(m_InitialState.tile, closestTile);
+						newAction.direction = GetDirection(m_InitialState.tile, randomTile);
 						newAction.startingState = m_InitialState;
-						newAction.endState.tile = closestTile;
+						newAction.endState.tile = randomTile;
 						newAction.endState.actionState = ActionState::MovingToLocation;
 						m_ActionQueue.InsertItem(newAction);
 						return;
 					}
-					else if (closestTile->GetType() == TileType::Wall)
+					else if (randomTile->GetType() == TileType::Wall)
 					{
 						// run ability action on this tile (turns wall tiles to floor tiles)
 						Action newAction;
 						newAction.actionType = Function::AbilityFunction;
-						newAction.direction = GetDirection(m_InitialState.tile, closestTile);
+						newAction.direction = GetDirection(m_InitialState.tile, randomTile);
 						newAction.startingState = m_InitialState;
-						newAction.endState.tile = closestTile;
+						newAction.endState.tile = randomTile;
 						newAction.endState.actionState = ActionState::UsingAbility;
 						m_ActionQueue.InsertItem(newAction);
 						return;
@@ -704,12 +659,14 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 					// add to action queue
 					m_CurrentSetOfActions = generatedSetOfActions;
 					m_ActionQueue.InsertItems(m_CurrentSetOfActions);
+					m_TimeBeforeLastScenario = 0.0f;
 				}
 
 				// on end of scenario
 				if (m_NPCRef->GetEndOfScenario())
 				{
 					m_NPCRef->SetEndOfScenario(false);
+					
 					// evaluate past actions success
 					if (m_MutatedSetOfActions.Num() <= 0)
 					{
@@ -720,17 +677,22 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 					}
 
 					// was the new set of actions more successful?
-					if (EvaluateActions(m_MutatedSetOfActions) > EvaluateActions(m_CurrentSetOfActions))
+					if (m_TimeBeforeLastScenario > m_LastTimeBeforeLastScenario)
 					{
 						// override the old set of actions
 						m_CurrentSetOfActions = m_MutatedSetOfActions;
 					}
+
+					m_LastTimeBeforeLastScenario = m_TimeBeforeLastScenario;
+					m_TimeBeforeLastScenario = 0.0f;
 
 					// using current set of actions stored mutate it and add to action queue
 					m_MutatedSetOfActions = MutateActions(m_CurrentSetOfActions);
 					m_ActionQueue.InsertItems(m_MutatedSetOfActions);
 					return;
 				}
+
+				m_TimeBeforeLastScenario += DeltaTime;
 
 			}
 
@@ -748,11 +710,19 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
 {
 	TArray<Action> newActionArray = actions;
-	// convert 25% of the actions to new actions
-	for (int i = 0; i < actions.Num() / 4; i++)
+
+	// delete 10 to 30 actions
+	int32 randomDeleteInt = FMath::RandRange(10, 30);
+	for (int i = 0; i < randomDeleteInt; i++)
 	{
-		// get random index
-		int32 randomIndex = FMath::RandRange(0, actions.Num() - 1);
+		int32 randomIndex = FMath::RandRange(0, newActionArray.Num() - 1);
+		newActionArray.RemoveAt(randomIndex);
+	}
+	// create deleted items to deleted items + 10 new actions
+	int32 randomAddInt = FMath::RandRange(randomDeleteInt, randomDeleteInt + 10);
+	for (int i = 0; i < randomAddInt; i++)
+	{
+
 		// convert to random action
 		GenerateRandomAction();
 
@@ -765,8 +735,8 @@ TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
 		}
 		else
 		{
-			currentState.actionState = actions[i - 1].endState.actionState;
-			currentState.tile = actions[i - 1].endState.tile;
+			currentState.actionState = newActionArray[i - 1].endState.actionState;
+			currentState.tile = newActionArray[i - 1].endState.tile;
 		}
 
 		if (action.GetCharArray()[0] == 'A')
@@ -793,7 +763,7 @@ TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
 			newAction.endState.actionState = ActionState::Attacking;
 			newAction.endState.tile = attackTile.ref;
 			newAction.direction = FVector2D{ attackTile.xDir, attackTile.yDir };
-			newActionArray[randomIndex] = newAction;
+			newActionArray.Add(newAction);
 
 		}
 		else if (action.GetCharArray()[0] == 'M')
@@ -820,7 +790,7 @@ TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
 			newAction.endState.actionState = ActionState::MovingToLocation;
 			newAction.endState.tile = moveTile.ref;
 			newAction.direction = FVector2D{ moveTile.xDir, moveTile.yDir };
-			newActionArray[randomIndex] = newAction;
+			newActionArray.Add(newAction);
 
 
 		}
@@ -848,7 +818,7 @@ TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
 			newAction.endState.actionState = ActionState::Interacting;
 			newAction.endState.tile = interactTile.ref;
 			newAction.direction = FVector2D{ interactTile.xDir, interactTile.yDir };
-			newActionArray[randomIndex] = newAction;
+			newActionArray.Add(newAction);
 
 		}
 		else if (action.GetCharArray()[0] == 'S')
@@ -874,18 +844,21 @@ TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
 			newAction.endState.actionState = ActionState::UsingAbility;
 			newAction.endState.tile = abilityTile.ref;
 			newAction.direction = FVector2D{ abilityTile.xDir, abilityTile.yDir };
-			newActionArray[randomIndex] = newAction;
+			newActionArray.Add(newAction);
 
 		}
-	
 
+
+	
 	}
+	
+	
 	return newActionArray;
 }
 
-int32 UPlanningBrain::EvaluateActions(const TArray<Action>& actions)
+float UPlanningBrain::EvaluateActions(const TArray<Action>& actions)
 {
-	return m_StepsBeforeEndOfScenario;
+	return m_TimeBeforeLastScenario;
 }
 
 TArray<Action> UPlanningBrain::GenerateArrayOfActions()

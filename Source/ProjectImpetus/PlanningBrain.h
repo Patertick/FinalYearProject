@@ -238,7 +238,8 @@ private:
 	TArray<Action> m_CurrentSetOfActions;
 	TArray<Action> m_MutatedSetOfActions;
 
-	int32 m_StepsBeforeEndOfScenario{ 0 };
+	float m_TimeBeforeLastScenario{ 0.0f };
+	float m_LastTimeBeforeLastScenario{ 0.0f };
 
 	// state manager
 
@@ -304,7 +305,9 @@ public:
 	TArray<Action> GenerateArrayOfActions();
 
 	TArray<Action> MutateActions(const TArray<Action>& actions);
-	int32 EvaluateActions(const TArray<Action>& actions);
+	float EvaluateActions(const TArray<Action>& actions);
+
+	void EmptyActionQueue() { m_ActionQueue.Empty(); }
 	
 	// goal creation functions
 

@@ -44,8 +44,6 @@ void ATile3D::FindConnectedTiles()
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), Tiles);
 
 
-	GEngine->AddOnScreenDebugMessage(2, 15.0f, FColor::Red, TEXT("RUN"));
-
 	// find adjacent tiles (within 150 units counts as adjacent)
 	for (AActor* tile : Tiles)
 	{

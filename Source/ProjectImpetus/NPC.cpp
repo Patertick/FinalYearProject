@@ -29,7 +29,6 @@ void ANPC::BeginPlay()
 	State newState;
 	FVector2D npcLocation = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
 	newState.tile = m_PlanningBrain->FindClosestTile(npcLocation);
-	newState.tile->SetType(TileType::NPC);
 	newState.actionState = ActionState::DoingNothing;
 	m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
 	m_PlanningBrain->AddNPCToMapStateManager(m_Index, m_Health, GetActorLocation());
@@ -43,6 +42,11 @@ void ANPC::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (!ValidNPC()) return;
+
+	if (CallFindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y })->GetType() != TileType::None)
+	{
+		CallFindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y })->TurnToFloor();
+	}
 
 	/*if (!m_Threat)
 	{
@@ -70,7 +74,7 @@ void ANPC::Tick(float DeltaTime)
 
 	if (m_Threat)
 	{
-		m_WalkSpeed = 1.0f;
+		m_WalkSpeed = 15.0f;
 	}
 	else
 	{
@@ -84,23 +88,28 @@ void ANPC::Death()
 	// has this scenario ended?
 	this->SetActorEnableCollision(false);
 	this->SetActorHiddenInGame(true);
+	if (m_Threat)
+	{
+		Respawn();
+	}
 	//Respawn();
 }
 
 void ANPC::Respawn()
 {
+	m_PlanningBrain->EmptyActionQueue();
 	m_HasDied = false;
 	m_HasEscaped = false;
 	m_EndOfScenario = true;
 	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Respawn"));
 	this->SetActorEnableCollision(true);
 	this->SetActorHiddenInGame(false);
+	m_MemoryBrain->ClearMemory();
 	// reset properties
 	State newState;
 	m_CurrentAction.actionType = Function::NullAction;
 	FVector2D npcLocation = FVector2D{ m_StartTile->GetActorLocation().X, m_StartTile->GetActorLocation().Y};
 	newState.tile = (Cast<ATile3D>(m_StartTile));
-	newState.tile->SetType(TileType::NPC);
 	newState.actionState = ActionState::DoingNothing;
 	m_PlanningBrain->SetInitialState(newState.tile, newState.actionState);
 	SetActorLocation(FVector(npcLocation.X, npcLocation.Y, 0.0f));
@@ -219,6 +228,15 @@ void ANPC::SetRotation()
 
 State ANPC::Move(State startState, State endState)
 {
+	if (endState.tile->GetType() == TileType::Wall)
+	{
+		State newState;
+		newState.tile = startState.tile;
+		newState.actionState = ActionState::DoingNothing;
+		m_CurrentAction.actionType = Function::NullAction;
+		return newState;
+	}
+
 	// move between tiles
 	FVector2D currentPos = FVector2D{ GetActorLocation().X, GetActorLocation().Y };
 	FVector2D endPos = FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y };
@@ -241,13 +259,17 @@ State ANPC::Move(State startState, State endState)
 		m_CurrentAction.actionType = Function::NullAction;
 		return newState;
 	}
+
 	return NULLState();
+
 }
 
 State ANPC::Attack(State startState, State endState)
 {
-
-	UGameplayStatics::ApplyDamage(m_PlanningBrain->FindClosestNPC(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }), m_Damage, nullptr, this, NULL);
+	if (m_PlanningBrain->FindClosestNPC(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }) != this)
+	{
+		UGameplayStatics::ApplyDamage(m_PlanningBrain->FindClosestNPC(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }), m_Damage, nullptr, this, NULL);
+	}
 	State newState;
 	newState.tile = startState.tile;
 	newState.actionState = ActionState::DoingNothing;
@@ -269,6 +291,7 @@ State ANPC::Interact(State startState, State endState)
 
 State ANPC::Ability(State startState, State endState)
 {
+
 	if (endState.tile->GetType() == TileType::Escape)
 	{
 		State newState;
@@ -290,6 +313,14 @@ State ANPC::Ability(State startState, State endState)
 	}
 	else
 	{
+		if (endState.tile->GetType() != TileType::None)
+		{
+			State newState;
+			newState.tile = startState.tile;
+			newState.actionState = ActionState::DoingNothing;
+			m_CurrentAction.actionType = Function::NullAction;
+			return newState;
+		}
 		State newState;
 		newState.tile = startState.tile;
 		endState.tile->TurnToWall();
@@ -315,9 +346,7 @@ void ANPC::CallAction(Action action)
 		}
 		else
 		{
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
 			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
 		}
 		break;
 	case Function::AttackFunction:
@@ -328,9 +357,7 @@ void ANPC::CallAction(Action action)
 		}
 		else
 		{
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
 			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
 		}
 		break;
 	case Function::InteractFunction:
@@ -341,9 +368,7 @@ void ANPC::CallAction(Action action)
 		}
 		else
 		{
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
 			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
 		}
 	case Function::AbilityFunction:
 		currentState = Ability(action.startingState, action.endState);
@@ -353,9 +378,7 @@ void ANPC::CallAction(Action action)
 		}
 		else
 		{
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
 			m_PlanningBrain->SetInitialState(currentState.tile, currentState.actionState); // action has completed and initial state updates
-			m_PlanningBrain->GetInitialState().tile->SetType(TileType::NPC);
 		}
 	default:
 		// do nothing

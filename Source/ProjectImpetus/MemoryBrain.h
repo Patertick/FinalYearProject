@@ -86,6 +86,8 @@ public:
 
 	bool IsNPCInMemory();
 
+	void ClearMemory() { m_ObjectsInMemory.Empty(); }
+
 
 	UFUNCTION(BlueprintCallable, Category = Qualities)
 		TArray<TEnumAsByte<Quality>> GetQualities() { return m_Qualities; }
