@@ -682,6 +682,13 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 						// override the old set of actions
 						m_CurrentSetOfActions = m_MutatedSetOfActions;
 					}
+					else
+					{
+						if (EvaluateActions(m_MutatedSetOfActions) > EvaluateActions(m_CurrentSetOfActions))
+						{
+							m_CurrentSetOfActions = m_MutatedSetOfActions;
+						}
+					}
 
 					m_LastTimeBeforeLastScenario = m_TimeBeforeLastScenario;
 					m_TimeBeforeLastScenario = 0.0f;
@@ -858,7 +865,170 @@ TArray<Action> UPlanningBrain::MutateActions(const TArray<Action>& actions)
 
 float UPlanningBrain::EvaluateActions(const TArray<Action>& actions)
 {
-	return m_TimeBeforeLastScenario;
+	float totalWeight{ 0.0f };
+	for (Quality quality : m_NPCRef->GetQualitiesFromMemory())
+	{
+		if (quality == Quality::Fearless)
+		{
+			// find damage taken
+			float damageTaken = m_NPCRef->GetMaxHealth() - m_NPCRef->GetHealth();
+			// divide by max health (so the value is between 1 and 0; between  max damage taken and no damage taken)
+			damageTaken = damageTaken / m_NPCRef->GetMaxHealth();
+			totalWeight += damageTaken;
+		}
+		else if (quality == Quality::Coward)
+		{
+			// find damage taken
+			float damageTaken = m_NPCRef->GetMaxHealth() - m_NPCRef->GetHealth();
+			// divide by max health (so the value is between 1 and 0; between  max damage taken and no damage taken)
+			damageTaken = damageTaken / m_NPCRef->GetMaxHealth();
+			totalWeight += 1.0f - damageTaken; // do 1 minus damage taken so that less damage taken results in higher weight
+		}
+		else if (quality == Quality::MoralCompass)
+		{
+			TArray<AActor*> NPCs;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANPC::StaticClass(), NPCs);
+
+			float totalTimeAlive{ 0.0f };
+			float lastTotalTimeAlive{ 0.0f };
+			int32 numberOfFriendlyNPCS{ 0 };
+			for (int i = 0; i < NPCs.Num(); i++)
+			{
+				if (Cast<ANPC>(NPCs[i]) != nullptr)
+				{
+					if (!Cast<ANPC>(NPCs[i])->m_Threat)
+					{
+						totalTimeAlive += Cast<ANPC>(NPCs[i])->CallGetTimeBeforeLastScenario();
+						lastTotalTimeAlive += Cast<ANPC>(NPCs[i])->CallGetLastTimeBeforeLastScenario();
+						numberOfFriendlyNPCS++;
+					}
+				}
+			}
+
+			if (numberOfFriendlyNPCS <= 0)
+			{
+				// don't add any weight
+			}
+			else
+			{
+				// find time spent alive for all other non-enemy NPCs
+				// if the average time spent alive is higher then this should result in higher weight (thus add 1.0)
+				totalTimeAlive /= numberOfFriendlyNPCS;
+				lastTotalTimeAlive /= numberOfFriendlyNPCS;
+
+				if (totalTimeAlive > lastTotalTimeAlive)
+				{
+					totalWeight += 1.0f;
+				}
+
+			}
+
+			
+		}
+		else if (quality == Quality::Evil)
+		{
+			TArray<AActor*> NPCs;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANPC::StaticClass(), NPCs);
+
+			float totalTimeAlive{ 0.0f };
+			float lastTotalTimeAlive{ 0.0f };
+			int32 numberOfFriendlyNPCS{ 0 };
+			for (int i = 0; i < NPCs.Num(); i++)
+			{
+				if (Cast<ANPC>(NPCs[i]) != nullptr)
+				{
+					if (!Cast<ANPC>(NPCs[i])->m_Threat)
+					{
+						totalTimeAlive += Cast<ANPC>(NPCs[i])->CallGetTimeBeforeLastScenario();
+						lastTotalTimeAlive += Cast<ANPC>(NPCs[i])->CallGetLastTimeBeforeLastScenario();
+						numberOfFriendlyNPCS++;
+					}
+				}
+			}
+
+			if (numberOfFriendlyNPCS <= 0)
+			{
+				// don't add any weight
+			}
+			else
+			{
+				// find time spent alive for all other non-enemy NPCs
+				// if the average time spent alive is lower then this should result in higher weight (thus add 1.0)
+				totalTimeAlive /= numberOfFriendlyNPCS;
+				lastTotalTimeAlive /= numberOfFriendlyNPCS;
+
+				if (totalTimeAlive < lastTotalTimeAlive)
+				{
+					totalWeight += 1.0f;
+				}
+
+			}
+		}
+		else if (quality == Quality::Violent)
+		{
+			// find damage dealt
+			// higher damage since last scenario has higher weight (thus add 1.0)
+			if (m_NPCRef->GetDamageDealt() > m_NPCRef->GetLastDamageDealt())
+			{
+				totalWeight += 1.0f;
+			}
+		}
+		else if (quality == Quality::Pacifist)
+		{
+			// find damage dealt
+			// lower damage since last scenario has higher weight (thus add 1.0)
+			if (m_NPCRef->GetDamageDealt() < m_NPCRef->GetLastDamageDealt())
+			{
+				totalWeight += 1.0f;
+			}
+		}
+		else if (quality == Quality::Efficient)
+		{
+			// go through actions and find redundant actions, divide the number of redundant actions by number of actions
+			// return 1 - the calculated value
+			totalWeight += 1.0f - FindNumberOfRedundantActions(m_CurrentSetOfActions);
+			
+		}
+		else if (quality == Quality::Lazy)
+		{
+			// simply find number of actions and convert to a weight
+			// lower number of actions have higher weights (thus add 1.0)
+			if (m_MutatedSetOfActions.Num() < m_CurrentSetOfActions.Num())
+			{
+				totalWeight += 1.0f;
+			}
+		}
+		else if (quality == Quality::Active)
+		{
+			// simply find number of actions and convert to a weight
+			// lower number of actions have higher weights (thus add 1.0)
+			if (m_MutatedSetOfActions.Num() > m_CurrentSetOfActions.Num())
+			{
+				totalWeight += 1.0f;
+			}
+		}
+	}
+
+	return totalWeight / m_NPCRef->GetQualitiesFromMemory().Num(); // return the average weight
+}
+
+int32 UPlanningBrain::FindNumberOfRedundantActions(const TArray<Action>& actions)
+{
+	// go through array, save actions to an array, if the array of actions overlaps with the next action then its redundant, increment a value and return once whole array has been checked
+	int32 numberOfRedundantActions{ 0 };
+	TArray<Action> uniqueActions;
+	for (Action action : actions)
+	{
+		if (uniqueActions.Contains(action))
+		{
+			numberOfRedundantActions++;
+		}
+		else
+		{
+			uniqueActions.Add(action);
+		}
+	}
+	return numberOfRedundantActions / actions.Num();
 }
 
 TArray<Action> UPlanningBrain::GenerateArrayOfActions()

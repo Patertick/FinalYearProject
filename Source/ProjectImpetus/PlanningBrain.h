@@ -67,7 +67,7 @@ struct State {
 	ATile3D* tile; // tile the NPC is standing on
 	ActionState actionState; // current NPC action state (what is being done)
 
-	bool operator==(State other)
+	bool operator==(const State& other) const
 	{
 		if (tile == other.tile && actionState == other.actionState)
 		{
@@ -131,6 +131,21 @@ struct Action
 		endState = other.endState;
 		actionType = other.actionType;
 		direction = other.direction;
+	}
+
+	bool operator==(const Action& other) const
+	{
+		if (startingState == other.startingState)
+		{
+			if (endState == other.endState)
+			{
+				if (actionType == other.actionType)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 };
 
@@ -308,6 +323,11 @@ public:
 	float EvaluateActions(const TArray<Action>& actions);
 
 	void EmptyActionQueue() { m_ActionQueue.Empty(); }
+
+	float GetTimeBeforeLastScenario() { return m_TimeBeforeLastScenario; }
+	float GetLastTimeBeforeLastScenario() { return m_LastTimeBeforeLastScenario; }
+
+	int32 FindNumberOfRedundantActions(const TArray<Action>& actions);
 	
 	// goal creation functions
 

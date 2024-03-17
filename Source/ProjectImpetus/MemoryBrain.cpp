@@ -166,52 +166,34 @@ Quality UMemoryBrain::GenerateRandomQuality()
 	switch (randomNum)
 	{
 	case 0:
-		return Quality::Blind;
-		break;
-	case 1:
-		return Quality::Deaf;
-		break;
-	case 2:
 		return Quality::Fearless;
 		break;
-	case 3:
+	case 1:
 		return Quality::Coward;
 		break;
-	case 4:
+	case 2:
 		return Quality::MoralCompass;
 		break;
-	case 5:
+	case 3:
 		return Quality::Evil;
 		break;
-	case 6:
+	case 4:
 		return Quality::Violent;
 		break;
-	case 7:
+	case 5:
 		return Quality::Pacifist;
 		break;
-	case 8:
+	case 6:
 		return Quality::Efficient;
 		break;
-	case 9:
-		return Quality::Stupid;
 		break;
-	case 10:
-		return Quality::Smart;
-		break;
-	case 11:
+	case 7:
 		return Quality::Lazy;
 		break;
-	case 12:
+	case 8:
+	default:
 		return Quality::Active;
 		break;
-	case 13:
-		return Quality::AngerIssues;
-		break;
-	case 14:
-		return Quality::Charismatic;
-		break;
-	default:
-		return Quality::NullQuality;
 	}
 }
 
@@ -219,20 +201,6 @@ bool UMemoryBrain::DoesQualityContradict(Quality first, Quality second)
 {
 	switch (first)
 	{
-	case Quality::Blind:
-		if (second == Quality::Blind) // no repeats
-		{
-			return true;
-		}
-		return false;
-		break;
-	case Quality::Deaf:
-		if (second == Quality::Deaf)
-		{
-			return true;
-		}
-		return false;
-		break;
 	case Quality::Fearless:
 		if (second == Quality::Fearless || second == Quality::Coward) // coward clearly contradicts fearless
 		{
@@ -276,21 +244,7 @@ bool UMemoryBrain::DoesQualityContradict(Quality first, Quality second)
 		return false;
 		break;
 	case Quality::Efficient:
-		if (second == Quality::Efficient || second == Quality::Lazy || second == Quality::Stupid) // stupid & lazy contradict efficient
-		{
-			return true;
-		}
-		return false;
-		break;
-	case Quality::Stupid:
-		if (second == Quality::Stupid || second == Quality::Smart || second == Quality::Efficient) // stupid & smart contradict
-		{
-			return true;
-		}
-		return false;
-		break;
-	case Quality::Smart:
-		if (second == Quality::Smart || second == Quality::Stupid)
+		if (second == Quality::Efficient || second == Quality::Lazy) // stupid & lazy contradict efficient
 		{
 			return true;
 		}
@@ -310,22 +264,8 @@ bool UMemoryBrain::DoesQualityContradict(Quality first, Quality second)
 		}
 		return false;
 		break;
-	case Quality::AngerIssues:
-		if (second == Quality::AngerIssues) // nothing contradicts anger issues at the moment
-		{
-			return true;
-		}
-		return false;
-		break;
-	case Quality::Charismatic:
-		if (second == Quality::Charismatic) // nothing contradicts charismatic at the moment
-		{
-			return true;
-		}
-		return false;
-		break;
 	default:
-		return true;
+		return false;
 	}
 }
 

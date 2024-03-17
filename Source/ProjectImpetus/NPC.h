@@ -153,6 +153,9 @@ private:
 	float m_Health{ 100.0f };
 	float m_MaxHealth{ 100.0f };
 
+	float m_DamageDealt{ 0.0f };
+	float m_LastDamageDealt{ 0.0f };
+
 	// acting
 
 	Action m_CurrentAction; // current action this NPC is performing
@@ -292,6 +295,11 @@ public:
 		m_HasEscaped = true; // has escaped
 		Death(); // kill npc
 	}
+
+	float CallGetTimeBeforeLastScenario() { return m_PlanningBrain->GetTimeBeforeLastScenario(); }
+	float CallGetLastTimeBeforeLastScenario() { return m_PlanningBrain->GetLastTimeBeforeLastScenario(); }
+	float GetDamageDealt() { return m_DamageDealt; }
+	float GetLastDamageDealt() { return m_LastDamageDealt; }
 
 	// Goal creation getters
 

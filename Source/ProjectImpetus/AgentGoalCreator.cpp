@@ -262,51 +262,51 @@ State UAgentGoalCreator::CreateGoal()
 
 		float patrolChance{ 1.0f }, takeBreakChance{ 1.0f }, followIndividualChance{ 1.0f };
 
-		// patrol modifiers
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Active))
-		{
-			patrolChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
-		{
-			patrolChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
-		{
-			patrolChance *= 0.5f; // decrease chance by 0.5
-		}
+		//// patrol modifiers
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Active))
+		//{
+		//	patrolChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
+		//{
+		//	patrolChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
+		//{
+		//	patrolChance *= 0.5f; // decrease chance by 0.5
+		//}
 
-		// take break modifiers
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
-		{
-			takeBreakChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Active))
-		{
-			takeBreakChance *= 0.5f; // decrease chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
-		{
-			takeBreakChance *= 0.5f; // decrease chance by 0.5
-		}
+		//// take break modifiers
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
+		//{
+		//	takeBreakChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Active))
+		//{
+		//	takeBreakChance *= 0.5f; // decrease chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
+		//{
+		//	takeBreakChance *= 0.5f; // decrease chance by 0.5
+		//}
 
-		// follow individual modifiers
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::MoralCompass))
-		{
-			followIndividualChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Charismatic))
-		{
-			followIndividualChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
-		{
-			followIndividualChance *= 0.5f; // decrease chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Evil))
-		{
-			followIndividualChance *= 0.5f; // decrease chance by 0.5
-		}
+		//// follow individual modifiers
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::MoralCompass))
+		//{
+		//	followIndividualChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Charismatic))
+		//{
+		//	followIndividualChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
+		//{
+		//	followIndividualChance *= 0.5f; // decrease chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Evil))
+		//{
+		//	followIndividualChance *= 0.5f; // decrease chance by 0.5
+		//}
 
 		float randomFloat = FMath::FRandRange(0.0f, patrolChance + takeBreakChance + followIndividualChance);
 

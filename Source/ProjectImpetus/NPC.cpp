@@ -98,6 +98,8 @@ void ANPC::Death()
 void ANPC::Respawn()
 {
 	m_PlanningBrain->EmptyActionQueue();
+	m_LastDamageDealt = m_DamageDealt;
+	m_DamageDealt = 0.0f;
 	m_HasDied = false;
 	m_HasEscaped = false;
 	m_EndOfScenario = true;
@@ -269,6 +271,7 @@ State ANPC::Attack(State startState, State endState)
 	if (m_PlanningBrain->FindClosestNPC(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }) != this)
 	{
 		UGameplayStatics::ApplyDamage(m_PlanningBrain->FindClosestNPC(FVector2D{ endState.tile->GetActorLocation().X, endState.tile->GetActorLocation().Y }), m_Damage, nullptr, this, NULL);
+		m_DamageDealt += m_Damage;
 	}
 	State newState;
 	newState.tile = startState.tile;

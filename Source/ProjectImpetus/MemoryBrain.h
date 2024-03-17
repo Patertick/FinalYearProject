@@ -25,8 +25,6 @@ struct ActorSnapShot {
 
 UENUM()
 enum Quality { // these are generated on start, but they can also be dynamically added to NPC during game
-	Blind UMETA(DisplayName = "Blind"), // unable to perceive through sight sensors
-	Deaf UMETA(DisplayName = "Deaf"), // unable to perceive through hearing sensors
 	Fearless UMETA(DisplayName = "Fearless"), // no weight given to actions that decrease health
 	Coward UMETA(DisplayName = "Coward"), // favours actions that result in taking less to no damage
 	MoralCompass UMETA(DisplayName = "Moral Compass"), // favours actions that result in ally NPCs taking less to no damage
@@ -34,13 +32,8 @@ enum Quality { // these are generated on start, but they can also be dynamically
 	Violent UMETA(DisplayName = "Violent"), // favours attacking actions whenever possible
 	Pacifist UMETA(DisplayName = "Pacifist"), // cannot use attack actions
 	Efficient UMETA(DisplayName = "Efficient"), // favours actions that accomplish the most
-	Stupid UMETA(DisplayName = "Stupid"), // learn slower
-	Smart UMETA(DisplayName = "Smart"), // learn faster
 	Lazy UMETA(DisplayName = "Lazy"), // lower stamina
 	Active UMETA(DisplayName = "Active"), // higher stamina
-	AngerIssues UMETA(DisplayName = "Anger Issues"), // once damaged, favours attack actions, regardless of friend or foe
-	Charismatic UMETA(DisplayName = "Charismatic"), // with this quality, actions such as healing or aid is given priority to this NPC over others
-	NullQuality UMETA(DisplayName = "No Quality"), // for error checking
 };
 
 
@@ -61,8 +54,8 @@ private:
 	ANPC* m_NPCRef{ nullptr }; // reference to the object this brain works for
 	TArray<ActorSnapShot> m_ObjectsInMemory; // will copy actor pointers into this array
 	
-	const int32 KNUMBEROFQUALITIES{ 15 };
-	const int32 KNUMBEROFSTARTINGQUALITIES{ 4 };
+	const int32 KNUMBEROFQUALITIES{ 9 };
+	const int32 KNUMBEROFSTARTINGQUALITIES{ 5 };
 	TArray<TEnumAsByte<Quality>> m_Qualities; // NPC qualities that affect their potential for certain actions & emotional responses
 
 public:	

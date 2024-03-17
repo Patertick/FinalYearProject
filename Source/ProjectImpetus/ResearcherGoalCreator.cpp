@@ -317,59 +317,59 @@ State UResearcherGoalCreator::CreateGoal()
 
 		float workChance{ 1.0f }, takeBreakChance{ 1.0f }, meetingRoomChance{ 1.0f };
 
-		// patrol modifiers
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Smart))
-		{
-			workChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
-		{
-			workChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
-		{
-			workChance *= 0.5f; // decrease chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
-		{
-			workChance *= 0.5f; // decrease chance by 0.5
-		}
+		//// patrol modifiers
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Smart))
+		//{
+		//	workChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
+		//{
+		//	workChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
+		//{
+		//	workChance *= 0.5f; // decrease chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
+		//{
+		//	workChance *= 0.5f; // decrease chance by 0.5
+		//}
 
-		// take break modifiers
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
-		{
-			takeBreakChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
-		{
-			takeBreakChance *= 0.5f; // decrease chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
-		{
-			takeBreakChance *= 0.5f; // decrease chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Active))
-		{
-			takeBreakChance *= 0.5f; // decrease chance by 0.5
-		}
+		//// take break modifiers
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
+		//{
+		//	takeBreakChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
+		//{
+		//	takeBreakChance *= 0.5f; // decrease chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
+		//{
+		//	takeBreakChance *= 0.5f; // decrease chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Active))
+		//{
+		//	takeBreakChance *= 0.5f; // decrease chance by 0.5
+		//}
 
-		// follow individual modifiers
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Charismatic))
-		{
-			meetingRoomChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
-		{
-			meetingRoomChance *= 1.5f; // increase chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
-		{
-			meetingRoomChance *= 0.5f; // decrease chance by 0.5
-		}
-		if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
-		{
-			meetingRoomChance *= 0.5f; // decrease chance by 0.5
-		}
+		//// follow individual modifiers
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Charismatic))
+		//{
+		//	meetingRoomChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
+		//{
+		//	meetingRoomChance *= 1.5f; // increase chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Stupid))
+		//{
+		//	meetingRoomChance *= 0.5f; // decrease chance by 0.5
+		//}
+		//if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Lazy))
+		//{
+		//	meetingRoomChance *= 0.5f; // decrease chance by 0.5
+		//}
 
 		float randomFloat = FMath::FRandRange(0.0f, workChance + takeBreakChance + meetingRoomChance);
 
