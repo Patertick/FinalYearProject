@@ -55,7 +55,7 @@ private:
 	TArray<ActorSnapShot> m_ObjectsInMemory; // will copy actor pointers into this array
 	
 	const int32 KNUMBEROFQUALITIES{ 9 };
-	const int32 KNUMBEROFSTARTINGQUALITIES{ 5 };
+	const int32 KNUMBEROFSTARTINGQUALITIES{ 4 };
 	TArray<TEnumAsByte<Quality>> m_Qualities; // NPC qualities that affect their potential for certain actions & emotional responses
 
 public:	

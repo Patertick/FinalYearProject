@@ -62,9 +62,6 @@ void ANPC::Tick(float DeltaTime)
 		return;
 	}
 
-	m_SensorBrain->SetFieldOfView(m_FieldOfView);
-	m_SensorBrain->SetMaxViewDistance(m_MaxViewDistance);
-
 	m_Controllable = !m_Threat;	
 
 
@@ -106,7 +103,6 @@ void ANPC::Respawn()
 	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Respawn"));
 	this->SetActorEnableCollision(true);
 	this->SetActorHiddenInGame(false);
-	m_MemoryBrain->ClearMemory();
 	// reset properties
 	State newState;
 	m_CurrentAction.actionType = Function::NullAction;

@@ -47,65 +47,63 @@ void UPlanningBrain::BeginPlay()
 
 	// SET ACTIONS
 
-	Action newAction;
+	//Action newAction;
 
-	for (State state : m_PossibleStates)
-	{
-		for (ConnectedTile connectedTile : state.tile->GetConnectedTiles())
-		{
+	//for (State state : m_PossibleStates)
+	//{
+	//	for (ConnectedTile connectedTile : state.tile->GetConnectedTiles())
+	//	{
 
-			// set possible move actions between connected tiles for each state
-			newAction.startingState = state;
-			// this state should already exist in possible states, but rather than waste time looking it up, simply set new state to equivalent state
-			newState.actionState = state.actionState;
-			newState.tile = connectedTile.ref;
-			newAction.endState = newState;
-			newAction.actionType = Function::MoveFunction;
+	//		// set possible move actions between connected tiles for each state
+	//		newAction.startingState = state;
+	//		// this state should already exist in possible states, but rather than waste time looking it up, simply set new state to equivalent state
+	//		newState.actionState = state.actionState;
+	//		newState.tile = connectedTile.ref;
+	//		newAction.endState = newState;
+	//		newAction.actionType = Function::MoveFunction;
 
-			if (newAction.startingState == newAction.endState)
-			{
-				// do nothing
-			}
-			else m_Actions.Add(newAction);
+	//		if (newAction.startingState == newAction.endState)
+	//		{
+	//			// do nothing
+	//		}
+	//		else m_Actions.Add(newAction);
 
 
 
-			// possible interact actions include states is interacting with each connected tile
-			// end state is not where the NPC will be physically its just the state that the NPC is interacting with (as in whatever object is in that position)
-			newAction.startingState = state;
-			newState.actionState = ActionState::Interacting;
-			newState.tile = connectedTile.ref;
-			newAction.endState = newState;
-			newAction.actionType = Function::InteractFunction;
-			if (newAction.startingState == newAction.endState)
-			{
-				// do nothing
-			}
-			else m_Actions.Add(newAction);
-		}
+	//		// possible interact actions include states is interacting with each connected tile
+	//		// end state is not where the NPC will be physically its just the state that the NPC is interacting with (as in whatever object is in that position)
+	//		newAction.startingState = state;
+	//		newState.actionState = ActionState::Interacting;
+	//		newState.tile = connectedTile.ref;
+	//		newAction.endState = newState;
+	//		newAction.actionType = Function::InteractFunction;
+	//		if (newAction.startingState == newAction.endState)
+	//		{
+	//			// do nothing
+	//		}
+	//		else m_Actions.Add(newAction);
+	//	}
 
-		// possible attack actions include states where the tile contains an NPC & is within range
-		for (ATile3D* tile : m_MapData)
-		{
-			// since the action is marked as an attack function, our NPC isn't going to the location that the state specifies, it's attacking that state
-			// possible states are just any state any NPC can be in, thus using an attack function on a state is simply attacking whatever NPC is in that state
-			newAction.startingState = state;
-			// if tile is within range this is our target
-			newState.actionState = ActionState::Attacking;
-			newState.tile = tile;
-			newAction.endState = newState;
-			newAction.actionType = Function::AttackFunction;
-			if (newAction.startingState == newAction.endState)
-			{
-				// do nothing
-			}
-			else m_Actions.Add(newAction);
-		}
-	}
+	//	// possible attack actions include states where the tile contains an NPC & is within range
+	//	for (ATile3D* tile : m_MapData)
+	//	{
+	//		// since the action is marked as an attack function, our NPC isn't going to the location that the state specifies, it's attacking that state
+	//		// possible states are just any state any NPC can be in, thus using an attack function on a state is simply attacking whatever NPC is in that state
+	//		newAction.startingState = state;
+	//		// if tile is within range this is our target
+	//		newState.actionState = ActionState::Attacking;
+	//		newState.tile = tile;
+	//		newAction.endState = newState;
+	//		newAction.actionType = Function::AttackFunction;
+	//		if (newAction.startingState == newAction.endState)
+	//		{
+	//			// do nothing
+	//		}
+	//		else m_Actions.Add(newAction);
+	//	}
+	//}
 
 	//m_InitialState.actionState = ActionState::DoingNothing;
-
-	m_AutonomousGoal.actionState = ActionState::DoingNothing;
 	
 }
 
@@ -526,17 +524,20 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 					for (ANPC* actor : friendlyNPC)
 					{
-						if (closestActor == nullptr)
+						if (!actor->GetHasDied())
 						{
-							closestActor = actor;
-						}
-						else
-						{
-							float oldDistance = FVector2D::Distance(FVector2D{ closestActor->GetActorLocation().X, closestActor->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
-							float newDistance = FVector2D::Distance(FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
-							if (newDistance < oldDistance)
+							if (closestActor == nullptr)
 							{
 								closestActor = actor;
+							}
+							else
+							{
+								float oldDistance = FVector2D::Distance(FVector2D{ closestActor->GetActorLocation().X, closestActor->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
+								float newDistance = FVector2D::Distance(FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y }, FVector2D{ m_NPCRef->GetActorLocation().X, m_NPCRef->GetActorLocation().Y });
+								if (newDistance < oldDistance)
+								{
+									closestActor = actor;
+								}
 							}
 						}
 

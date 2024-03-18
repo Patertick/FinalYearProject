@@ -224,13 +224,13 @@ private:
 
 	// planning variables
 
-	TArray<State> m_GoalStates; // possible states that apply to our goal
+	//TArray<State> m_GoalStates; // possible states that apply to our goal
 
-	State m_AutonomousGoal; // goal creator sets this, when NPC is of right mind and the directive is set, this is overridden
+	//State m_AutonomousGoal; // goal creator sets this, when NPC is of right mind and the directive is set, this is overridden
 
 	TArray<State> m_PossibleStates; // all possible states for this NPC
 
-	TArray<Action> m_Actions; // collection of possible actions
+	//TArray<Action> m_Actions; // collection of possible actions
 
 	State m_InitialState; // starting state; when action is called this is set to state after action
 
@@ -333,10 +333,10 @@ public:
 
 
 
-	void SetGoal(State newGoal) { m_AutonomousGoal = newGoal; }
+	//void SetGoal(State newGoal) { m_AutonomousGoal = newGoal; }
 
 	bool IsActionQueueEmpty() { return m_ActionQueue.IsEmpty(); }
 
-	ActionState GetGoalState() { return m_AutonomousGoal.actionState; }
-	ATile3D* GetGoalTile() { return m_AutonomousGoal.tile; }
+	//ActionState GetGoalState() { return m_AutonomousGoal.actionState; }
+	//ATile3D* GetGoalTile() { return m_AutonomousGoal.tile; }
 };

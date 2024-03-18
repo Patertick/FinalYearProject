@@ -223,7 +223,7 @@ public:
 	// robustness functions
 	UFUNCTION(BlueprintCallable, Category = Robust)
 		bool ValidNPC() {
-		if (m_SensorBrain == nullptr || m_MemoryBrain == nullptr || m_PlanningBrain == nullptr || m_EmotionBrain == nullptr) // invalid if any agent is null
+		if (m_MemoryBrain == nullptr || m_PlanningBrain == nullptr) // invalid if any agent is null
 		{
 			return false;
 		}
@@ -280,7 +280,7 @@ public:
 
 	// Planning functions
 
-	void CallSetGoal(State newGoal) { m_PlanningBrain->SetGoal(newGoal); }
+	//void CallSetGoal(State newGoal) { m_PlanningBrain->SetGoal(newGoal); }
 
 	int32 GetIndex() { return m_Index; }
 
