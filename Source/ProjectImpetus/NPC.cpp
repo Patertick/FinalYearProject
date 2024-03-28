@@ -36,6 +36,16 @@ void ANPC::BeginPlay()
 	GenerateName();
 }
 
+void ANPC::CreateMovePath()
+{
+	// find a random tile in range, create a random path
+}
+
+void ANPC::CreateAttack()
+{
+	// find an enemy within range, create a random attack (tile pattern)
+}
+
 // Called every frame
 void ANPC::Tick(float DeltaTime)
 {

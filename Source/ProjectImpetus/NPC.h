@@ -10,6 +10,7 @@
 #include "MemoryBrain.h"
 #include "PlanningBrain.h"
 #include "EmotionBrain.h"
+#include "ActionManager.h"
 #include "NPC.generated.h"
 
 UENUM()
@@ -160,6 +161,8 @@ private:
 
 	Action m_CurrentAction; // current action this NPC is performing
 
+	UActionManager* m_ActionManager{ nullptr };
+
 	// NPCs current alert level (affected by processed sensory & memory functions)
 
 	AlertLevel m_Alertness{ AlertLevel::Low };
@@ -203,6 +206,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = BrainSet)
 		void SetEmotionBrain(UEmotionBrain* emotion) { m_EmotionBrain = emotion; }
 
+	// set action manager
+	UFUNCTION(BlueprintCallable, Category = ActionManagerSet)
+		void SetActionManager(UActionManager* actionManager) { m_ActionManager = actionManager; }
+
 	UFUNCTION(BlueprintCallable, Category = Run)
 		void RunQLearning() { m_RunQLearning = true; }
 	UFUNCTION(BlueprintCallable, Category = Start)
@@ -223,7 +230,7 @@ public:
 	// robustness functions
 	UFUNCTION(BlueprintCallable, Category = Robust)
 		bool ValidNPC() {
-		if (m_MemoryBrain == nullptr || m_PlanningBrain == nullptr) // invalid if any agent is null
+		if (m_MemoryBrain == nullptr || m_PlanningBrain == nullptr || m_ActionManager == nullptr) // invalid if any agent is null
 		{
 			return false;
 		}
@@ -235,6 +242,10 @@ public:
 	void CallAction(Action action);
 
 	void SetAction(Action action) { m_CurrentAction = action; }
+
+	void CreateMovePath(); // create a path to move through, the action managers chosen mobility action will be used to modulate
+	void CreateAttack(); // create an attack, the action managers chosen offensive action will be used to modulate
+	
 
 	bool IsExecutingAction() {
 		if (m_CurrentAction.actionType != Function::NullAction)
