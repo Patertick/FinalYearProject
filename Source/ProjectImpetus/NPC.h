@@ -243,8 +243,8 @@ public:
 
 	void SetAction(Action action) { m_CurrentAction = action; }
 
-	void CreateMovePath(); // create a path to move through, the action managers chosen mobility action will be used to modulate
-	void CreateAttack(); // create an attack, the action managers chosen offensive action will be used to modulate
+	void CreateMovePath(ATile3D* startTile, ATile3D* endTile); // create a path to move through, the action managers chosen mobility action will be used to modulate
+	void CreateAttack(ATile3D* startTile); // create an attack, the action managers chosen offensive action will be used to modulate
 	
 
 	bool IsExecutingAction() {
@@ -349,6 +349,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Name)
 		FString GetName() { return m_Name; }
+
+	// debug
+
+	UFUNCTION(BlueprintCallable, Category = ActionManagerDebug)
+		FString GetMobilityActionProperties() { return m_ActionManager->GetMobilityPropertiesOutput(); }
+	UFUNCTION(BlueprintCallable, Category = ActionManagerDebug)
+		FString GetOffensiveActionProperties() { return m_ActionManager->GetOffensivePropertiesOutput(); }
+	UFUNCTION(BlueprintCallable, Category = ActionManagerDebug)
+		FString GetUtilityActionProperties() { return m_ActionManager->GetUtilityPropertiesOutput(); }
 };
 
 

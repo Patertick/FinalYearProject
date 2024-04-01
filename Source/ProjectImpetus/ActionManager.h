@@ -164,4 +164,51 @@ public:
 	MobilityAction GenerateMobilityAction();
 	OffensiveAction GenerateOffensiveAction();
 	UtilityAction GenerateUtilityAction();
+
+	MobilityAction GetMobilityAction() { return m_MobilityAction; }
+	OffensiveAction GetOffensiveAction() { return m_OffensiveAction; }
+	UtilityAction GetUtilityAction() { return m_UtilityAction; }
+
+	FString GetMobilityPropertiesOutput() {
+		FString properties = "";
+		properties = properties + "Speed: " + FString::SanitizeFloat(m_MobilityAction.speed) + "\n";
+		if (m_MobilityAction.isTargetable) properties = properties + "can be targeted" + "\n";
+		else properties = properties + "cannot be targeted" + "\n";
+		properties = properties + "Range of movement: " + FString::SanitizeFloat(m_MobilityAction.rangeOfMovement) + "\n";
+		if(m_MobilityAction.canChangeTrajectory) properties = properties + "can change trajectory during movement" + "\n";
+		else properties = properties + "cannot change trajectory during movement" + "\n";
+		if(m_MobilityAction.canOtherActionsBeUsed) properties = properties + "can use other actions during movement" + "\n";
+		else properties = properties + "cannot use other actions during movement" + "\n";
+		properties = properties + "Max stamina cost: " + FString::SanitizeFloat(m_MobilityAction.maxStaminaCost);
+		return properties;
+	}
+	FString GetOffensivePropertiesOutput() {
+		FString properties = "";
+		properties = properties + "Number of targetable tiles: " + FString::SanitizeFloat(m_OffensiveAction.numberOfTargetableTiles) + "\n";
+		if (m_OffensiveAction.stunTargets) properties = properties + "can stun targets" + "\n";
+		else properties = properties + "cannot stun targets" + "\n";
+		properties = properties + "Pushback distance: " + FString::SanitizeFloat(m_OffensiveAction.pushDistance) + "\n";
+		properties = properties + "Attack cooldown: " + FString::SanitizeFloat(m_OffensiveAction.attackCooldown) + "\n";
+		return properties;
+	}
+	FString GetUtilityPropertiesOutput() {
+		FString properties = "";
+		switch (m_UtilityAction.utilityType)
+		{
+		case UtilityType::AllyNPCs:
+			properties = properties + "Affects Ally NPCs" + "\n";
+			break;
+		case UtilityType::EnemyNPCs:
+			properties = properties + "Affects Enemy NPCs" + "\n";
+			break;
+		case UtilityType::Tiles:
+			properties = properties + "Affects Tiles" + "\n";
+			break;
+		case UtilityType::Objects:
+			properties = properties + "Affects Objects" + "\n";
+			break;
+		}
+		properties = properties + "Utility cooldown: " + FString::SanitizeFloat(m_UtilityAction.utilityCooldown) + "\n";
+		return properties;
+	}
 };

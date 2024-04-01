@@ -36,12 +36,12 @@ void ANPC::BeginPlay()
 	GenerateName();
 }
 
-void ANPC::CreateMovePath()
+void ANPC::CreateMovePath(ATile3D* startTile, ATile3D* endTile)
 {
 	// find a random tile in range, create a random path
 }
 
-void ANPC::CreateAttack()
+void ANPC::CreateAttack(ATile3D* startTile)
 {
 	// find an enemy within range, create a random attack (tile pattern)
 }

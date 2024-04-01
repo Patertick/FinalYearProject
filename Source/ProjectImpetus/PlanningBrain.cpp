@@ -112,7 +112,7 @@ void UPlanningBrain::BeginPlay()
 void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
+	return;
 	if (m_NPCRef->GetHasDied()) return;
 
 	if (m_NPCRef->GetDirective() == Directive::MoveHere)

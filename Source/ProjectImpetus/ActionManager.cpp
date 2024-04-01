@@ -47,7 +47,7 @@ MobilityAction UActionManager::GenerateMobilityAction()
 	generatedAction.isTargetable = FMath::RandBool();
 	generatedAction.rangeOfMovement = FMath::FRandRange(generatedAction.speed, generatedAction.speed * 20); // 1 step to 20 steps
 	generatedAction.canChangeTrajectory = FMath::RandBool();
-	if (generatedAction.isTargetable) generatedAction.canOtherActionsBeUsed = false;
+	if (!generatedAction.isTargetable) generatedAction.canOtherActionsBeUsed = false;
 	else generatedAction.canOtherActionsBeUsed = FMath::RandBool();
 	generatedAction.maxStaminaCost = FMath::FRandRange(10.0f, 40.0f);
 
