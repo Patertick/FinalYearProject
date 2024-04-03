@@ -4,6 +4,7 @@
 #include "Tile3D.h"
 #include <Kismet/GameplayStatics.h>
 #include <string>
+#include "NPC.h"
 
 // Sets default values
 ATile3D::ATile3D()
@@ -36,6 +37,27 @@ void ATile3D::TurnToFloor()
 void ATile3D::TurnToWall()
 {
 	SetActorRelativeScale3D(FVector{ 1.0f, 1.0f, 5.0f });
+}
+
+void ATile3D::AttackTile(ANPC* attackingNPC)
+{
+	// set as attacked
+	m_Attacked = true;
+	// find if an NPC is on the tile, if so, they are dealt damage
+	TArray<AActor*> NPC;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANPC::StaticClass(), NPC);
+
+
+	// find npc on tile (within 100 units counts as on the tile)
+	for (AActor* npc : NPC)
+	{
+		if (npc != this && FVector::Distance(npc->GetActorLocation(), GetActorLocation()) <= KTILESIZE)
+		{
+			// deal damage
+			UGameplayStatics::ApplyDamage(npc, attackingNPC->GetDamage(), nullptr, attackingNPC, NULL);
+			return;
+		}
+	}
 }
 
 void ATile3D::FindConnectedTiles()

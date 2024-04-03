@@ -107,6 +107,24 @@ void UPlanningBrain::BeginPlay()
 	
 }
 
+void UPlanningBrain::AddMovePathToActionQueue(Path movePath)
+{
+	for (int i = 0; i < movePath.locations.Num() - 1; i++)
+	{
+		// for each location
+		// create the action that goes from start location to this new location
+		Action newAction;
+		newAction.actionType = Function::MoveFunction;
+		newAction.startingState.actionState = ActionState::DoingNothing;
+		newAction.startingState.tile = FindClosestTile(movePath.locations[i]);
+		newAction.endState.actionState = ActionState::DoingNothing;
+		newAction.endState.tile = FindClosestTile(movePath.locations[i + 1]);
+		// add action to queue
+		m_ActionQueue.InsertItem(newAction);
+
+	}
+}
+
 
 // Called every frame
 void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

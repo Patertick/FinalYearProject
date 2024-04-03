@@ -38,6 +38,8 @@ struct ConnectedTile {
 	FString direction;
 };
 
+class ANPC;
+
 
 static const float KTILESIZE{ 100.0f };
 
@@ -58,6 +60,8 @@ public:
 		TEnumAsByte<FloorType> m_FloorType { FloorType::NotAFloor };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FloorProperties)
 		bool m_StartedAsFloor{ false };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attacking)
+		bool m_Attacked{ false };
 	
 
 protected:
@@ -103,6 +107,8 @@ public:
 			m_Type = TileType::Wall;
 		}
 	}
+
+	void AttackTile(ANPC* attackingNPC);
 
 	TArray<ConnectedTile> GetConnectedTiles() { return m_connectedTiles; }
 

@@ -38,12 +38,172 @@ void ANPC::BeginPlay()
 
 void ANPC::CreateMovePath(ATile3D* startTile, ATile3D* endTile)
 {
-	// find a random tile in range, create a random path
+	// set appropriate move properties
+	m_WalkSpeed = m_ActionManager->GetMobilityAction().speed;
+	m_CanBeTargeted = m_ActionManager->GetMobilityAction().isTargetable;
+	m_CanUseActions = m_ActionManager->GetMobilityAction().canOtherActionsBeUsed;
+
+	Path newPath;
+
+	// is move ability able to change trajectory during move?
+	if (m_ActionManager->GetMobilityAction().canChangeTrajectory)
+	{
+		// create A* path to end tile
+		newPath = m_PlanningBrain->FindAStarPath(startTile, endTile);
+	}
+	else
+	{
+		// create straight line path to end tile (or wall if a wall is in the way)
+		bool endOfPath{ false };
+		ATile3D* currentTile = startTile;
+		while (endOfPath)
+		{
+			// find next tile using euclidean heuristic
+			ATile3D* closestToEndTile{ nullptr };
+			for (ConnectedTile adjacentTile : currentTile->GetConnectedTiles())
+			{
+				if (closestToEndTile == nullptr)
+				{
+					closestToEndTile = adjacentTile.ref;
+				}
+				else
+				{
+					float newTileDistance = FVector2D::Distance(FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y }, FVector2D{ endTile->GetActorLocation().X, endTile->GetActorLocation().Y });
+					float oldTileDistance = FVector2D::Distance(FVector2D{ closestToEndTile->GetActorLocation().X, closestToEndTile->GetActorLocation().Y }, FVector2D{ endTile->GetActorLocation().X, endTile->GetActorLocation().Y });
+					if (newTileDistance < oldTileDistance)
+					{
+						closestToEndTile = adjacentTile.ref;
+					}
+				}
+			}
+
+			if (closestToEndTile == nullptr) break; // this shouldn't happen, but catch anyway
+
+			// add to new path
+			if (closestToEndTile->GetType() != TileType::None) // if its a wall, end path creation
+			{
+				endOfPath = true;
+			}
+			else if (closestToEndTile == endTile) // also end path creation if we reached the end tile
+			{
+				endOfPath = true;
+				newPath.locations.Add(FVector2D{ closestToEndTile->GetActorLocation().X, closestToEndTile->GetActorLocation().Y });
+			}
+			else
+			{
+				newPath.locations.Add(FVector2D{ closestToEndTile->GetActorLocation().X, closestToEndTile->GetActorLocation().Y });
+			}
+
+		}
+	}
+
+	// send path to action queue
+
+	m_PlanningBrain->AddMovePathToActionQueue(newPath);
 }
 
 void ANPC::CreateAttack(ATile3D* startTile)
 {
-	// find an enemy within range, create a random attack (tile pattern)
+	float distance = FVector2D::Distance(FVector2D{ startTile->GetActorLocation().X, startTile->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+	// is the start tile within attack range?
+	if (distance > m_AttackRange)
+	{
+
+		TArray<AActor*> NPC;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANPC::StaticClass(), NPC);
+		ANPC* closestNPC{ nullptr };
+		TArray<ANPC*> reachedNPC;
+		// create a path between all enemies in range
+		TArray<ATile3D*> attackTiles;
+		for (int i = 0; i < m_ActionManager->GetOffensiveAction().numberOfTargetableTiles; i++)
+		{
+			// find closest enemy
+			for (AActor* actor : NPC)
+			{
+				if(Cast<ANPC>(actor)->m_Threat != m_Threat && !reachedNPC.Contains(Cast<ANPC>(actor)))
+				{
+					if (closestNPC == nullptr)
+					{
+						closestNPC = Cast<ANPC>(actor);
+					}
+					else
+					{
+						float newTileDistance = FVector2D::Distance(FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+						float oldTileDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+						if (newTileDistance < oldTileDistance)
+						{
+							closestNPC = Cast<ANPC>(actor);
+						}
+					}
+				}
+			}
+
+			if (closestNPC == nullptr) break;
+
+			// is the current location the same as current enemy?
+			if (FVector2D{ attackTiles[attackTiles.Num() - 1]->GetActorLocation().X, attackTiles[attackTiles.Num() - 1]->GetActorLocation().Y }.Equals(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }))
+			{
+				// add to reached npcs
+				reachedNPC.Add(closestNPC);
+			}
+			else
+			{
+				// path towards this enemy
+				if (attackTiles.Num() <= 0)
+				{
+					attackTiles.Add(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }));
+				}
+				else
+				{
+					// find current tile
+					ATile3D* currentTile = attackTiles[attackTiles.Num() - 1];
+					// find next tile on the way to the closest enemy
+					ATile3D* closestToEnemy{ nullptr };
+					for (ConnectedTile adjacentTile : currentTile->GetConnectedTiles())
+					{
+						if (closestToEnemy == nullptr)
+						{
+							closestToEnemy = adjacentTile.ref;
+						}
+						else
+						{
+							float newTileDistance = FVector2D::Distance(FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y }, FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y });
+							float oldTileDistance = FVector2D::Distance(FVector2D{ closestToEnemy->GetActorLocation().X, closestToEnemy->GetActorLocation().Y }, FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y });
+							if (newTileDistance < oldTileDistance)
+							{
+								closestToEnemy = adjacentTile.ref;
+							}
+						}
+					}
+
+					if(closestToEnemy != nullptr) attackTiles.Add(closestToEnemy);
+				}
+
+
+			}
+		}
+		// cascade tiles towards self tile to create area attack effects
+
+		// for every tile in the set
+		for (ATile3D* tile : attackTiles)
+		{
+			// find the path between self tile and this tile
+			Path path = m_PlanningBrain->FindAStarPath(tile, m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }));
+			// add every tile not in attackTiles
+			for (FVector2D loc : path.locations)
+			{
+				if (!attackTiles.Contains(m_PlanningBrain->FindClosestTile(loc)))
+				{
+					attackTiles.Add(m_PlanningBrain->FindClosestTile(loc));
+				}
+			}
+		}
+
+		for (ATile3D* tile : attackTiles)
+		{
+			tile->AttackTile(this);
+		}
+	}
 }
 
 // Called every frame

@@ -157,11 +157,15 @@ private:
 	float m_DamageDealt{ 0.0f };
 	float m_LastDamageDealt{ 0.0f };
 
+	bool m_CanBeTargeted{ true };
+
 	// acting
 
 	Action m_CurrentAction; // current action this NPC is performing
 
 	UActionManager* m_ActionManager{ nullptr };
+
+	bool m_CanUseActions{ true };
 
 	// NPCs current alert level (affected by processed sensory & memory functions)
 
@@ -311,6 +315,7 @@ public:
 	float CallGetLastTimeBeforeLastScenario() { return m_PlanningBrain->GetLastTimeBeforeLastScenario(); }
 	float GetDamageDealt() { return m_DamageDealt; }
 	float GetLastDamageDealt() { return m_LastDamageDealt; }
+	float GetDamage() { return m_Damage; }
 
 	// Goal creation getters
 

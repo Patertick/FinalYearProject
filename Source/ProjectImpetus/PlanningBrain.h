@@ -322,6 +322,8 @@ public:
 	TArray<Action> MutateActions(const TArray<Action>& actions);
 	float EvaluateActions(const TArray<Action>& actions);
 
+	void AddMovePathToActionQueue(Path movePath);
+
 	void EmptyActionQueue() { m_ActionQueue.Empty(); }
 
 	float GetTimeBeforeLastScenario() { return m_TimeBeforeLastScenario; }
