@@ -11,6 +11,7 @@
 #include "PlanningBrain.h"
 #include "EmotionBrain.h"
 #include "ActionManager.h"
+#include "MeshGenerator.h"
 #include "NPC.generated.h"
 
 UENUM()
@@ -94,6 +95,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CharacterType)
 		TEnumAsByte<CharacterType> m_CharacterType{ CharacterType::OtherCharacter };
 
+	UStaticMeshComponent* m_Mesh;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -171,6 +174,10 @@ private:
 
 	AlertLevel m_Alertness{ AlertLevel::Low };
 
+	// mesh generation
+
+	UMeshGenerator* m_MeshGen{ nullptr };
+
 
 	// brains
 
@@ -214,6 +221,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ActionManagerSet)
 		void SetActionManager(UActionManager* actionManager) { m_ActionManager = actionManager; }
 
+	UFUNCTION(BlueprintCallable, Category = MeshGeneratorSet)
+		void SetMeshGenerator(UMeshGenerator* meshGen) { m_MeshGen = meshGen; }
+
 	UFUNCTION(BlueprintCallable, Category = Run)
 		void RunQLearning() { m_RunQLearning = true; }
 	UFUNCTION(BlueprintCallable, Category = Start)
@@ -234,7 +244,7 @@ public:
 	// robustness functions
 	UFUNCTION(BlueprintCallable, Category = Robust)
 		bool ValidNPC() {
-		if (m_MemoryBrain == nullptr || m_PlanningBrain == nullptr || m_ActionManager == nullptr) // invalid if any agent is null
+		if (m_MemoryBrain == nullptr || m_PlanningBrain == nullptr || m_MeshGen == nullptr || m_ActionManager == nullptr) // invalid if any agent is null
 		{
 			return false;
 		}

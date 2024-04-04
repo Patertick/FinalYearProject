@@ -13,6 +13,8 @@ ANPC::ANPC()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	m_Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("NPC Mesh"));
+	SetRootComponent(m_Mesh);
 }
 
 // Called when the game starts or when spawned
@@ -34,6 +36,7 @@ void ANPC::BeginPlay()
 	m_PlanningBrain->AddNPCToMapStateManager(m_Index, m_Health, GetActorLocation());
 		
 	GenerateName();
+	m_MeshGen->CreateNewMesh(m_Mesh);
 }
 
 void ANPC::CreateMovePath(ATile3D* startTile, ATile3D* endTile)
