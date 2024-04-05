@@ -6,21 +6,105 @@
 #include "Components/ActorComponent.h"
 #include "MeshGenerator.generated.h"
 
-struct Face {
+struct Edge {
 	FVector a;
-	int32 aIndex;
 	FVector b;
-	int32 bIndex;
+
+	bool operator==(const Edge other) const
+	{
+		if (a == other.a)
+		{
+			if (b == other.b)
+			{
+				return true;
+			}
+		}
+		else if (a == other.b)
+		{
+			if (b == other.a)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+};
+
+struct ConvexHull{
+	// Edges
+	TArray<Edge> edges;
+	TArray<FVector> points;
+};
+
+struct Mesh {
+	TArray<Triangle> triangles;
+	FVector centroid;
+};
+
+struct Triangle {
+	FVector a;
+	FVector b;
 	FVector c;
+
+	FVector GetPlaneNormal()
+	{
+
+	}
+};
+
+struct Face {
+	int32 aIndex;
+	int32 bIndex;
 	int32 cIndex;
 
 	bool operator==(const Face other) const
 	{
-		if (a == other.a)
+		if (aIndex == other.aIndex)
 		{
-			if(b == other.b)
+			if (bIndex == other.bIndex)
 			{
-				if (c == other.c)
+				if (cIndex == other.cIndex)
+				{
+					return true;
+				}
+			}
+			else if (bIndex == other.cIndex)
+			{
+				if (cIndex == other.bIndex)
+				{
+					return true;
+				}
+			}
+		}
+		else if (aIndex == other.bIndex)
+		{
+			if (bIndex == other.aIndex)
+			{
+				if (cIndex == other.cIndex)
+				{
+					return true;
+				}
+			}
+			else if (bIndex == other.cIndex)
+			{
+				if (cIndex == other.aIndex)
+				{
+					return true;
+				}
+			}
+		}
+		else if (aIndex == other.cIndex)
+		{
+			if (bIndex == other.aIndex)
+			{
+				if (cIndex == other.bIndex)
+				{
+					return true;
+				}
+			}
+			else if (bIndex == other.bIndex)
+			{
+				if (cIndex == other.aIndex)
 				{
 					return true;
 				}
@@ -45,9 +129,9 @@ protected:
 	
 private:
 	TArray<FVector> m_Mesh;
-	int32 m_XBounds{ 0 };
-	int32 m_YBounds{ 0 };
-	int32 m_ZBounds{ 0 };
+	FVector m_Centroid;
+	const int32 KNUMBEROFCLOSESTPOINTS{ 4 };
+
 
 public:	
 	// Called every frame
@@ -57,7 +141,11 @@ public:
 
 	TArray<Face> ConstructFaces();
 
-	int32 IndexFromXYZ(int32 x, int32 y, int32 z) {
-		return (z * m_YBounds) + (y * m_XBounds) + x;
-	}
+	int32 FindIndex(FVector vector);
+
+	ConvexHull ConstructHull(const TArray<FVector>& points);
+
+	Mesh ConstructMesh(const TArray<FVector>& points);
+
+	bool IsMeshValid(const Mesh& mesh);
 };
