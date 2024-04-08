@@ -36,9 +36,19 @@ struct ConvexHull{
 	TArray<FVector> points;
 };
 
-struct Mesh {
-	TArray<Triangle> triangles;
-	FVector centroid;
+struct Plane {
+	FVector normal;
+	FVector pointOnPlane;
+
+	bool IsInFrontOfPlane(FVector vec) // DO NOT MARK: THIS WORK WAS TAKEN FROM PAST PROJECT
+	{
+		FVector P = vec - pointOnPlane;
+
+		float dist = FVector::DotProduct(normal, P) / P.Size();
+
+		if (dist > 0.0f) return true; // point is in front of plane
+		return false; // point is behind or on plane
+	}
 };
 
 struct Triangle {
@@ -46,10 +56,79 @@ struct Triangle {
 	FVector b;
 	FVector c;
 
+	TArray<Triangle> connectedTriangles;
+
 	FVector GetPlaneNormal()
 	{
-
+		return FVector::CrossProduct(a, b).GetSafeNormal();
 	}
+
+	bool Intersects(const Triangle& other)
+	{
+		return false;
+	}
+
+	bool operator==(const Triangle other) const
+	{
+		if (a == other.a)
+		{
+			if (b == other.b)
+			{
+				if (c == other.c)
+				{
+					return true;
+				}
+			}
+			else if (b == other.c)
+			{
+				if (c == other.b)
+				{
+					return true;
+				}
+			}
+		}
+		else if (a == other.b)
+		{
+			if (b == other.a)
+			{
+				if (c == other.c)
+				{
+					return true;
+				}
+			}
+			else if (b == other.c)
+			{
+				if (c == other.a)
+				{
+					return true;
+				}
+			}
+		}
+		else if (a == other.c)
+		{
+			if (b == other.a)
+			{
+				if (c == other.b)
+				{
+					return true;
+				}
+			}
+			else if (b == other.b)
+			{
+				if (c == other.a)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+};
+
+struct Mesh {
+	TArray<Triangle> triangles;
+	FVector centroid;
 };
 
 struct Face {
@@ -131,6 +210,8 @@ private:
 	TArray<FVector> m_Mesh;
 	FVector m_Centroid;
 	const int32 KNUMBEROFCLOSESTPOINTS{ 4 };
+	const float KMAXDISTANCE{ 10.0f };
+	const float KMINDISTANCE{ 5.0f };
 
 
 public:	
@@ -148,4 +229,6 @@ public:
 	Mesh ConstructMesh(const TArray<FVector>& points);
 
 	bool IsMeshValid(const Mesh& mesh);
+
+	Triangle GenerateTriangle(FVector direction, FVector firstPoint = FVector{}, FVector secondPoint = FVector{});
 };

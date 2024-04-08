@@ -15,55 +15,19 @@ UMeshGenerator::UMeshGenerator()
 
 	// ...
 
-	//m_GeneratedStaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Generated Mesh"));
-
-	// generate random set of points
-
-	// ensure no points overlap & that number of points is a multiple of 3
-
-	int32 numberOfPoints{ 0 };
-	do {
-		numberOfPoints = FMath::RandRange(1000, 10000);
-	} while (numberOfPoints % 3 != 0);
-
-	m_Centroid = FVector{ 0.0f, 0.0f, 0.0f };
-
-	bool validMesh{ false };
-
-	while (!validMesh)
-	{
-		TArray<FVector> genMeshPointSet;
-		for (int i = 0; i < numberOfPoints; i++)
-		{
-			float newValX = FMath::FRandRange(-100.0f, 100.0f); // x co ord
-			float newValY = FMath::FRandRange(-100.0f, 100.0f); // y co ord
-			float newValZ = FMath::FRandRange(-100.0f, 100.0f); // z co ord
-			FVector vec = FVector{ newValX, newValY, newValZ };
-			genMeshPointSet.Add(vec);
-			m_Centroid += vec;
-		}
-
-		m_Centroid /= numberOfPoints;
-
-		Mesh mesh = ConstructMesh(genMeshPointSet);
-		if (IsMeshValid(mesh))
-		{
-			m_Mesh = genMeshPointSet;
-			validMesh = true;
-		}
-	}
+	
 }
 
 Mesh UMeshGenerator::ConstructMesh(const TArray<FVector>& points)
 {
 	Mesh newMesh;
-	for (int i = 0; i < m_Mesh.Num(); i+=3)
+	for (int i = 0; i < points.Num(); i+=3)
 	{
 		Triangle newTriangle;
 
-		newTriangle.a = m_Mesh[i + 2];
-		newTriangle.b = m_Mesh[i + 1];
-		newTriangle.c = m_Mesh[i];
+		newTriangle.a = points[i + 2];
+		newTriangle.b = points[i + 1];
+		newTriangle.c = points[i];
 
 		newMesh.triangles.Add(newTriangle);
 	}
@@ -79,24 +43,88 @@ bool UMeshGenerator::IsMeshValid(const Mesh& mesh)
 	{
 		int32 numberOfTrianglesThatSharesTwoPoints{ 0 };
 		// check each triangle against other triangles
-		for (Triangle other : mesh.triangles)
+		for (const Triangle& other : mesh.triangles)
 		{
-			// if the other triangle is completely on either side of the current triangle, there is not an intersection
 
-			//
+			if (other.a.Equals(tri.a) || other.a.Equals(tri.b) || other.a.Equals(tri.c))
+			{
+				if (other.b.Equals(tri.a) || other.b.Equals(tri.b) || other.b.Equals(tri.c))
+				{
+					numberOfTrianglesThatSharesTwoPoints++;
+				}
+				else if (other.c.Equals(tri.a) || other.c.Equals(tri.b) || other.c.Equals(tri.c))
+				{
+					numberOfTrianglesThatSharesTwoPoints++;
+				}
+			}
+			else if (other.c.Equals(tri.a) || other.c.Equals(tri.b) || other.c.Equals(tri.c))
+			{
+				if (other.b.Equals(tri.a) || other.b.Equals(tri.b) || other.b.Equals(tri.c))
+				{
+					numberOfTrianglesThatSharesTwoPoints++;
+				}
+				else if (other.a.Equals(tri.a) || other.a.Equals(tri.b) || other.a.Equals(tri.c))
+				{
+					numberOfTrianglesThatSharesTwoPoints++;
+				}
+			}
+			else if (other.b.Equals(tri.a) || other.b.Equals(tri.b) || other.b.Equals(tri.c))
+			{
+				if (other.a.Equals(tri.a) || other.a.Equals(tri.b) || other.a.Equals(tri.c))
+				{
+					numberOfTrianglesThatSharesTwoPoints++;
+				}
+				else if (other.c.Equals(tri.a) || other.c.Equals(tri.b) || other.c.Equals(tri.c))
+				{
+					numberOfTrianglesThatSharesTwoPoints++;
+				}
+			}
 		}
 
-
-		// if this triangle doesn't share two points with 3 other triangles, it must be disjoint
+		// if this triangle doesn't share two points with 6 other triangles, it must be disjoint
 		if (numberOfTrianglesThatSharesTwoPoints < 3)
 		{
 			return false;
 		}
-
-		// if the cross products of the points is not away from the centroid, then it must be facing the wrong direction
 	}
+
+	return true;
 }
 
+
+Triangle UMeshGenerator::GenerateTriangle(FVector direction, FVector firstPoint, FVector secondPoint)
+{
+	Triangle newTri;
+	if (firstPoint != FVector{})
+	{
+		newTri.a = firstPoint;
+	}
+	else
+	{
+		float randDist = FMath::FRandRange(10.0f, 100.0f);
+		do {
+			newTri.a = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+		} while (FVector::Distance(newTri.a, m_Centroid) < randDist);
+	}
+	if (secondPoint != FVector{})
+	{
+		newTri.b = secondPoint;
+	}
+	else
+	{
+		float randDist = FMath::FRandRange(10.0f, 100.0f);
+		do {
+			newTri.b = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+		} while (FVector::Distance(newTri.b, m_Centroid) < randDist);
+		//newTri.b = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+	}
+	newTri.c.X = ((newTri.a.X + newTri.b.X) / 2) + direction.GetSafeNormal().X * FMath::FRandRange(-100.0f, 100.0f);
+	newTri.c.Y = ((newTri.a.Y + newTri.b.Y) / 2) + direction.GetSafeNormal().Y * FMath::FRandRange(-100.0f, 100.0f);
+	newTri.c.Z = ((newTri.a.Z + newTri.b.Z) / 2) + direction.GetSafeNormal().Z * FMath::FRandRange(-100.0f, 100.0f);
+
+	return newTri;
+
+}
 
 // Called when the game starts
 void UMeshGenerator::BeginPlay()
@@ -108,21 +136,225 @@ void UMeshGenerator::BeginPlay()
 
 void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
 {
+
+	// GENERATE 3D CUBE MAP USING STRINGS
+
+	// TRANSLATE INTO MESH USING GEOMETRY
+
+	// RANDOM POSITIONING IS TOO UNRELIABLE AND REQUIRES TOO MUCH WORK
+	bool validMesh{ false };
+
+	Mesh newMesh;
+
+	int32 numberOfTriangles = FMath::RandRange(4, 4);
+	int32 count{ 0 };
+	while (!validMesh && count < 5)
+	{
+		count++;
+		if (newMesh.triangles.Num() <= 0)
+		{
+			// generate triangle
+			Triangle newTriangle;
+			newTriangle.a = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+			do {
+				newTriangle.b = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+			} while (FVector::Distance(newTriangle.b, newTriangle.a) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.a) < KMINDISTANCE);
+			do {
+				newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+			} while (FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE&& FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
+				&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE&& FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
+			newMesh.triangles.Add(newTriangle);
+		}
+		else
+		{
+			// open triangle can be defined as a triangle that exists such that three triangles don't share two points with this triangle
+
+			TArray<Triangle> trianglesToAdd;
+
+			for (const Triangle& tri : newMesh.triangles)
+			{
+
+				if (tri.connectedTriangles.Num() >= 3)
+				{
+					continue;
+				}
+				else
+				{
+					// for each edge, create a plane using the two points
+					// if a point exists in the connected triangles that's in front of the plane, this triangle is connected on that side
+					// on the side that has no point in front of the plane, use the plane normal and a random float (max distance) to randomly set another point
+					// this is now a connected triangle
+					Edge first, second, third;
+
+					first.a = tri.a;
+					first.b = tri.b;
+
+					second.a = tri.a;
+					second.b = tri.c;
+
+					third.a = tri.b;
+					third.b = tri.c;
+
+					Plane planeFirstEdge, planeSecondEdge, planeThirdEdge;
+					bool validFirstEdge{ true }, validSecondEdge{ true }, validThirdEdge{ true };
+
+					planeFirstEdge.normal = FVector::CrossProduct(first.a, first.b).GetSafeNormal();
+					planeFirstEdge.pointOnPlane = first.a;
+					planeSecondEdge.normal = FVector::CrossProduct(second.a, second.b).GetSafeNormal();
+					planeSecondEdge.pointOnPlane = second.b;
+					planeThirdEdge.normal = FVector::CrossProduct(third.a, third.b).GetSafeNormal();
+					planeThirdEdge.pointOnPlane = third.a;
+
+					if (tri.connectedTriangles.Num() > 0 && tri.connectedTriangles.Num() < 3)
+					{
+						for (Triangle connectedTri : tri.connectedTriangles)
+						{
+							if (planeFirstEdge.IsInFrontOfPlane(connectedTri.a) && !connectedTri.a.Equals(tri.a) && !connectedTri.a.Equals(tri.b) && !connectedTri.a.Equals(tri.c))
+							{
+								// first edge invalid
+								validFirstEdge = false;
+							}
+							else if (planeFirstEdge.IsInFrontOfPlane(connectedTri.b) && !connectedTri.b.Equals(tri.a) && !connectedTri.b.Equals(tri.b) && !connectedTri.b.Equals(tri.c))
+							{
+								// first edge invalid
+								validFirstEdge = false;
+							}
+							else if (planeFirstEdge.IsInFrontOfPlane(connectedTri.c) && !connectedTri.c.Equals(tri.a) && !connectedTri.c.Equals(tri.b) && !connectedTri.c.Equals(tri.c))
+							{
+								// first edge invalid
+								validFirstEdge = false;
+							}
+
+							if (planeSecondEdge.IsInFrontOfPlane(connectedTri.a) && !connectedTri.a.Equals(tri.a) && !connectedTri.a.Equals(tri.b) && !connectedTri.a.Equals(tri.c))
+							{
+								// second edge invalid
+								validSecondEdge = false;
+							}
+							else if (planeSecondEdge.IsInFrontOfPlane(connectedTri.b) && !connectedTri.b.Equals(tri.a) && !connectedTri.b.Equals(tri.b) && !connectedTri.b.Equals(tri.c))
+							{
+								// second edge invalid
+								validSecondEdge = false;
+							}
+							else if (planeSecondEdge.IsInFrontOfPlane(connectedTri.c) && !connectedTri.c.Equals(tri.a) && !connectedTri.c.Equals(tri.b) && !connectedTri.c.Equals(tri.c))
+							{
+								// second edge invalid
+								validSecondEdge = false;
+							}
+
+							if (planeThirdEdge.IsInFrontOfPlane(connectedTri.a) && !connectedTri.a.Equals(tri.a) && !connectedTri.a.Equals(tri.b) && !connectedTri.a.Equals(tri.c))
+							{
+								// third edge invalid
+								validThirdEdge = false;
+							}
+							else if (planeThirdEdge.IsInFrontOfPlane(connectedTri.b) && !connectedTri.b.Equals(tri.a) && !connectedTri.b.Equals(tri.b) && !connectedTri.b.Equals(tri.c))
+							{
+								// third edge invalid
+								validThirdEdge = false;
+							}
+							else if (planeThirdEdge.IsInFrontOfPlane(connectedTri.c) && !connectedTri.c.Equals(tri.a) && !connectedTri.c.Equals(tri.b) && !connectedTri.c.Equals(tri.c))
+							{
+								// third edge invalid
+								validThirdEdge = false;
+							}
+						}
+					}
+
+					if (validFirstEdge)
+					{
+						// generate a triangle in the planeFirstEdge direction
+						Triangle newTriangle;
+						newTriangle.a = first.a;
+						newTriangle.b = first.b;
+						do {
+							newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+						} while (!planeFirstEdge.IsInFrontOfPlane(newTriangle.c) && FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
+							&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
+						newTriangle.connectedTriangles.Add(tri);
+						trianglesToAdd.Add(newTriangle);
+
+					}
+					if (validSecondEdge)
+					{
+						// generate a triangle in the planeSecondEdge direction
+						Triangle newTriangle;
+						newTriangle.a = second.a;
+						newTriangle.b = second.b;
+						do {
+							newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+						} while (!planeSecondEdge.IsInFrontOfPlane(newTriangle.c) && FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
+							&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
+						newTriangle.connectedTriangles.Add(tri);
+						trianglesToAdd.Add(newTriangle);
+					}
+					if (validThirdEdge)
+					{
+						// generate a triangle in the planeThirdEdge direction
+						Triangle newTriangle;
+						newTriangle.a = third.a;
+						newTriangle.b = third.b;
+						do {
+							newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
+						} while (!planeThirdEdge.IsInFrontOfPlane(newTriangle.c) && FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
+							&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
+						newTriangle.connectedTriangles.Add(tri);
+						trianglesToAdd.Add(newTriangle);
+					}
+				}
+			}
+			if (trianglesToAdd.Num() <= 0)
+			{
+				validMesh = true;
+			}
+			else
+			{
+				for (Triangle newTri : trianglesToAdd)
+				{
+					newMesh.triangles.Add(newTri);
+					for (Triangle connected : newTri.connectedTriangles)
+					{
+						connected.connectedTriangles.Add(newTri);
+					}
+				}
+			}
+		}
+	}
+
+
+	for (const Triangle& tri : newMesh.triangles)
+	{
+		m_Mesh.Add(tri.a);
+		m_Mesh.Add(tri.b);
+		m_Mesh.Add(tri.c);
+		m_Mesh.Add(tri.c);
+		m_Mesh.Add(tri.b);
+		m_Mesh.Add(tri.a);
+	}
+
+	m_Centroid = FVector{ 0.0f, 0.0f, 0.0f };
+
+	for (FVector point : m_Mesh)
+	{
+		m_Centroid += point;
+	}
+
+	m_Centroid /= m_Mesh.Num();
+
 	// mesh description (holds uv values, normals etc.
 	FMeshDescription meshDesc;
 	FStaticMeshAttributes Attributes(meshDesc);
 	Attributes.Register();
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::SanitizeFloat(m_Mesh.Num()));
 
 	FMeshDescriptionBuilder meshDescBuilder;
 	meshDescBuilder.SetMeshDescription(&meshDesc);
 	meshDescBuilder.EnablePolyGroups();
 	meshDescBuilder.SetNumUVLayers(1);
-
 	// create vertices from m_Mesh vector values
 	TArray<FVertexID> vertexIDs;
 	vertexIDs.SetNum(m_Mesh.Num());
 	for (int i = 0; i < m_Mesh.Num(); i++)
 	{
+		//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, m_Mesh[i].ToString());
 		vertexIDs[i] = meshDescBuilder.AppendVertex(m_Mesh[i]);
 	}
 
@@ -130,7 +362,7 @@ void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
 	TArray<FVertexInstanceID> vertexInsts;
 
 	// using faces as reference, assign vertex instances
-	for (int i = 0; i < vertexIDs.Num(); i+= 3)
+	for (int i = 0; i < vertexIDs.Num(); i += 3)
 	{
 		// find the three vertices in vertexIDs that are apart of the face
 
@@ -146,11 +378,11 @@ void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
 		meshDescBuilder.SetInstanceNormal(instanceC, (m_Mesh[i + 2] - m_Centroid).GetSafeNormal());
 
 		// set uv values (a is 0,1 b is 0,0 and c is 1,0)
-		
-		meshDescBuilder.SetInstanceUV(instanceA, FVector2D(0, 1)); 
-		meshDescBuilder.SetInstanceUV(instanceB, FVector2D(0, 0)); 
+
+		meshDescBuilder.SetInstanceUV(instanceA, FVector2D(0, 1));
+		meshDescBuilder.SetInstanceUV(instanceB, FVector2D(0, 0));
 		meshDescBuilder.SetInstanceUV(instanceC, FVector2D(1, 0));
-		
+
 
 		// set colour
 
