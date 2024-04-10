@@ -30,7 +30,7 @@ struct Edge {
 	}
 };
 
-struct ConvexHull{
+struct ConvexHull {
 	// Edges
 	TArray<Edge> edges;
 	TArray<FVector> points;
@@ -193,28 +193,82 @@ struct Face {
 	}
 };
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+struct Column {
+	TArray<bool> col;
+};
+
+struct Row {
+	TArray<Column> row;
+};
+
+struct Index {
+	int32 x;
+	int32 y;
+	int32 z;
+
+	void operator=(const Index other)
+	{
+		x = other.x;
+		y = other.y;
+		z = other.z;
+	}
+	bool operator==(const Index other) const
+	{
+		if (x == other.x)
+		{
+			if (y == other.y)
+			{
+				if (z == other.z)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	bool operator!=(const Index other) const
+	{
+		if (x == other.x)
+		{
+			if (y == other.y)
+			{
+				if (z == other.z)
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+};
+
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class PROJECTIMPETUS_API UMeshGenerator : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	// Sets default values for this component's properties
 	UMeshGenerator();
 
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
-	
+
 private:
 	TArray<FVector> m_Mesh;
+	TArray<Row> m_MeshMap;
 	FVector m_Centroid;
+	int32 m_ZBounds;
+	int32 m_YBounds;
+	int32 m_XBounds;
+	const float KSIZEOFCUBE{ 10.0f };
 	const int32 KNUMBEROFCLOSESTPOINTS{ 4 };
 	const float KMAXDISTANCE{ 10.0f };
 	const float KMINDISTANCE{ 5.0f };
 
 
-public:	
+public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -231,4 +285,16 @@ public:
 	bool IsMeshValid(const Mesh& mesh);
 
 	Triangle GenerateTriangle(FVector direction, FVector firstPoint = FVector{}, FVector secondPoint = FVector{});
+
+	TArray<FVector> GenerateCube(FVector centrePoint, FVector offset);
+
+	TArray<Index> GetAdjacentItems(Index index);
+
+	Index GetRandomCube();
+
+	bool IsIndexConnected(Index start, Index end);
+
+	int32 IndexFromXYZ(int32 x, int32 y, int32 z) {
+		return (z * m_YBounds) + (y * m_XBounds) + x;
+	}
 };

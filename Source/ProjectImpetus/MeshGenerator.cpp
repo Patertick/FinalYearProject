@@ -15,13 +15,13 @@ UMeshGenerator::UMeshGenerator()
 
 	// ...
 
-	
+
 }
 
 Mesh UMeshGenerator::ConstructMesh(const TArray<FVector>& points)
 {
 	Mesh newMesh;
-	for (int i = 0; i < points.Num(); i+=3)
+	for (int i = 0; i < points.Num(); i += 3)
 	{
 		Triangle newTriangle;
 
@@ -134,201 +134,142 @@ void UMeshGenerator::BeginPlay()
 	// ...
 }
 
+
 void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
 {
 
-	// GENERATE 3D CUBE MAP USING STRINGS
+	// GENERATE 3D CUBE MAP USING BOOLEAN VALUES
 
-	// TRANSLATE INTO MESH USING GEOMETRY
+	m_XBounds = FMath::RandRange(10, 25);
+	m_YBounds = FMath::RandRange(10, 25);
+	m_ZBounds = FMath::RandRange(10, 25);
 
-	// RANDOM POSITIONING IS TOO UNRELIABLE AND REQUIRES TOO MUCH WORK
-	bool validMesh{ false };
-
-	Mesh newMesh;
-
-	int32 numberOfTriangles = FMath::RandRange(4, 4);
-	int32 count{ 0 };
-	while (!validMesh && count < 5)
+	for (int z = 0; z < m_ZBounds; z++)
 	{
-		count++;
-		if (newMesh.triangles.Num() <= 0)
+		Row newRow;
+		for (int y = 0; y < m_YBounds; y++)
 		{
-			// generate triangle
-			Triangle newTriangle;
-			newTriangle.a = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
-			do {
-				newTriangle.b = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
-			} while (FVector::Distance(newTriangle.b, newTriangle.a) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.a) < KMINDISTANCE);
-			do {
-				newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
-			} while (FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE&& FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
-				&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE&& FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
-			newMesh.triangles.Add(newTriangle);
-		}
-		else
-		{
-			// open triangle can be defined as a triangle that exists such that three triangles don't share two points with this triangle
-
-			TArray<Triangle> trianglesToAdd;
-
-			for (const Triangle& tri : newMesh.triangles)
+			Column newCol;
+			for (int x = 0; x < m_XBounds; x++)
 			{
+				newCol.col.Add(false);
+			}
+			newRow.row.Add(newCol);
+		}
+		m_MeshMap.Add(newRow);
+	}
 
-				if (tri.connectedTriangles.Num() >= 3)
+	int32 numberOfCubes = FMath::RandRange((m_XBounds * m_YBounds * m_ZBounds) / 10, (m_XBounds * m_YBounds * m_ZBounds) / 5);
+
+	int32 randomX, randomY, randomZ;
+
+	m_MeshMap[m_ZBounds / 2].row[m_YBounds / 2].col[m_XBounds / 2] = true;
+
+	for (int i = 0; i < numberOfCubes - 1; i++)
+	{
+		bool validLocation{ true };
+		do {
+			randomX = FMath::RandRange(0, m_XBounds - 1);
+			randomY = FMath::RandRange(0, m_YBounds - 1);
+			randomZ = FMath::RandRange(0, m_ZBounds - 1);
+
+			validLocation = false;
+			if (m_MeshMap[randomZ].row[randomY].col[randomX])
+			{
+				// do nothing
+			}
+			else
+			{
+				Index randomIndex;
+				randomIndex.x = randomX;
+				randomIndex.y = randomY;
+				randomIndex.z = randomZ;
+				TArray<Index> adjacentCubes = GetAdjacentItems(randomIndex);
+
+				for (Index value : adjacentCubes)
 				{
-					continue;
-				}
-				else
-				{
-					// for each edge, create a plane using the two points
-					// if a point exists in the connected triangles that's in front of the plane, this triangle is connected on that side
-					// on the side that has no point in front of the plane, use the plane normal and a random float (max distance) to randomly set another point
-					// this is now a connected triangle
-					Edge first, second, third;
-
-					first.a = tri.a;
-					first.b = tri.b;
-
-					second.a = tri.a;
-					second.b = tri.c;
-
-					third.a = tri.b;
-					third.b = tri.c;
-
-					Plane planeFirstEdge, planeSecondEdge, planeThirdEdge;
-					bool validFirstEdge{ true }, validSecondEdge{ true }, validThirdEdge{ true };
-
-					planeFirstEdge.normal = FVector::CrossProduct(first.a, first.b).GetSafeNormal();
-					planeFirstEdge.pointOnPlane = first.a;
-					planeSecondEdge.normal = FVector::CrossProduct(second.a, second.b).GetSafeNormal();
-					planeSecondEdge.pointOnPlane = second.b;
-					planeThirdEdge.normal = FVector::CrossProduct(third.a, third.b).GetSafeNormal();
-					planeThirdEdge.pointOnPlane = third.a;
-
-					if (tri.connectedTriangles.Num() > 0 && tri.connectedTriangles.Num() < 3)
+					if (value.x < 0 || value.x >= m_XBounds || value.y < 0 || value.y >= m_YBounds || value.z < 0 || value.z >= m_ZBounds)
 					{
-						for (Triangle connectedTri : tri.connectedTriangles)
+						// not valid
+					}
+					else
+					{
+						if (m_MeshMap[value.z].row[value.y].col[value.x])
 						{
-							if (planeFirstEdge.IsInFrontOfPlane(connectedTri.a) && !connectedTri.a.Equals(tri.a) && !connectedTri.a.Equals(tri.b) && !connectedTri.a.Equals(tri.c))
-							{
-								// first edge invalid
-								validFirstEdge = false;
-							}
-							else if (planeFirstEdge.IsInFrontOfPlane(connectedTri.b) && !connectedTri.b.Equals(tri.a) && !connectedTri.b.Equals(tri.b) && !connectedTri.b.Equals(tri.c))
-							{
-								// first edge invalid
-								validFirstEdge = false;
-							}
-							else if (planeFirstEdge.IsInFrontOfPlane(connectedTri.c) && !connectedTri.c.Equals(tri.a) && !connectedTri.c.Equals(tri.b) && !connectedTri.c.Equals(tri.c))
-							{
-								// first edge invalid
-								validFirstEdge = false;
-							}
+							validLocation = true; // adjacent cube exists
+						}
+					}
+				}
+			}
+		} while (!validLocation);
 
-							if (planeSecondEdge.IsInFrontOfPlane(connectedTri.a) && !connectedTri.a.Equals(tri.a) && !connectedTri.a.Equals(tri.b) && !connectedTri.a.Equals(tri.c))
-							{
-								// second edge invalid
-								validSecondEdge = false;
-							}
-							else if (planeSecondEdge.IsInFrontOfPlane(connectedTri.b) && !connectedTri.b.Equals(tri.a) && !connectedTri.b.Equals(tri.b) && !connectedTri.b.Equals(tri.c))
-							{
-								// second edge invalid
-								validSecondEdge = false;
-							}
-							else if (planeSecondEdge.IsInFrontOfPlane(connectedTri.c) && !connectedTri.c.Equals(tri.a) && !connectedTri.c.Equals(tri.b) && !connectedTri.c.Equals(tri.c))
-							{
-								// second edge invalid
-								validSecondEdge = false;
-							}
+		m_MeshMap[randomZ].row[randomY].col[randomX] = true;
+	}
 
-							if (planeThirdEdge.IsInFrontOfPlane(connectedTri.a) && !connectedTri.a.Equals(tri.a) && !connectedTri.a.Equals(tri.b) && !connectedTri.a.Equals(tri.c))
+	// REMOVE UNNECESSARY CUBES
+
+	for (int z = 0; z < m_MeshMap.Num(); z++)
+	{
+		for (int y = 0; y < m_MeshMap[z].row.Num(); y++)
+		{
+			for (int x = 0; x < m_MeshMap[z].row[y].col.Num(); x++)
+			{
+				if (m_MeshMap[z].row[y].col[x])
+				{
+					int32 numberOfAdjacentCubes{ 0 };
+					Index currentIndex;
+					currentIndex.x = x;
+					currentIndex.y = y;
+					currentIndex.z = z;
+					TArray<Index> adjacentCubes = GetAdjacentItems(currentIndex);
+					for (Index value : adjacentCubes)
+					{
+						if (value.x < 0 || value.x >= m_XBounds || value.y < 0 || value.y >= m_YBounds || value.z < 0 || value.z >= m_ZBounds)
+						{
+							// not valid
+						}
+						else
+						{
+							if (m_MeshMap[value.z].row[value.y].col[value.x])
 							{
-								// third edge invalid
-								validThirdEdge = false;
-							}
-							else if (planeThirdEdge.IsInFrontOfPlane(connectedTri.b) && !connectedTri.b.Equals(tri.a) && !connectedTri.b.Equals(tri.b) && !connectedTri.b.Equals(tri.c))
-							{
-								// third edge invalid
-								validThirdEdge = false;
-							}
-							else if (planeThirdEdge.IsInFrontOfPlane(connectedTri.c) && !connectedTri.c.Equals(tri.a) && !connectedTri.c.Equals(tri.b) && !connectedTri.c.Equals(tri.c))
-							{
-								// third edge invalid
-								validThirdEdge = false;
+								numberOfAdjacentCubes++;
 							}
 						}
 					}
 
-					if (validFirstEdge)
+					if (numberOfAdjacentCubes >= adjacentCubes.Num())
 					{
-						// generate a triangle in the planeFirstEdge direction
-						Triangle newTriangle;
-						newTriangle.a = first.a;
-						newTriangle.b = first.b;
-						do {
-							newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
-						} while (!planeFirstEdge.IsInFrontOfPlane(newTriangle.c) && FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
-							&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
-						newTriangle.connectedTriangles.Add(tri);
-						trianglesToAdd.Add(newTriangle);
+						m_MeshMap[z].row[y].col[x] = false;
+					}
 
-					}
-					if (validSecondEdge)
-					{
-						// generate a triangle in the planeSecondEdge direction
-						Triangle newTriangle;
-						newTriangle.a = second.a;
-						newTriangle.b = second.b;
-						do {
-							newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
-						} while (!planeSecondEdge.IsInFrontOfPlane(newTriangle.c) && FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
-							&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
-						newTriangle.connectedTriangles.Add(tri);
-						trianglesToAdd.Add(newTriangle);
-					}
-					if (validThirdEdge)
-					{
-						// generate a triangle in the planeThirdEdge direction
-						Triangle newTriangle;
-						newTriangle.a = third.a;
-						newTriangle.b = third.b;
-						do {
-							newTriangle.c = FVector{ FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f), FMath::FRandRange(-100.0f, 100.0f) };
-						} while (!planeThirdEdge.IsInFrontOfPlane(newTriangle.c) && FVector::Distance(newTriangle.a, newTriangle.c) > KMAXDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) > KMAXDISTANCE
-							&& FVector::Distance(newTriangle.a, newTriangle.c) < KMINDISTANCE && FVector::Distance(newTriangle.b, newTriangle.c) < KMINDISTANCE);
-						newTriangle.connectedTriangles.Add(tri);
-						trianglesToAdd.Add(newTriangle);
-					}
 				}
 			}
-			if (trianglesToAdd.Num() <= 0)
+		}
+	}
+
+	// TRANSLATE INTO MESH
+
+	FVector offset = FVector{ static_cast<float>(m_XBounds * 2), static_cast<float>(m_YBounds * 2), static_cast<float>(m_ZBounds * 2) };
+
+	for (int z = 0; z < m_MeshMap.Num(); z++)
+	{
+		for (int y = 0; y < m_MeshMap[z].row.Num(); y++)
+		{
+			for (int x = 0; x < m_MeshMap[z].row[y].col.Num(); x++)
 			{
-				validMesh = true;
-			}
-			else
-			{
-				for (Triangle newTri : trianglesToAdd)
+				if (m_MeshMap[z].row[y].col[x])
 				{
-					newMesh.triangles.Add(newTri);
-					for (Triangle connected : newTri.connectedTriangles)
+					TArray<FVector> cubeIndices = GenerateCube(FVector{ x * KSIZEOFCUBE, y * KSIZEOFCUBE, z * KSIZEOFCUBE }, offset);
+					for (FVector loc : cubeIndices)
 					{
-						connected.connectedTriangles.Add(newTri);
+						m_Mesh.Add(loc);
 					}
 				}
 			}
 		}
 	}
 
-
-	for (const Triangle& tri : newMesh.triangles)
-	{
-		m_Mesh.Add(tri.a);
-		m_Mesh.Add(tri.b);
-		m_Mesh.Add(tri.c);
-		m_Mesh.Add(tri.c);
-		m_Mesh.Add(tri.b);
-		m_Mesh.Add(tri.a);
-	}
+	//m_Mesh = GenerateCube(FVector{ 0.0f, 0.0f, 0.0f });
 
 	m_Centroid = FVector{ 0.0f, 0.0f, 0.0f };
 
@@ -343,7 +284,6 @@ void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
 	FMeshDescription meshDesc;
 	FStaticMeshAttributes Attributes(meshDesc);
 	Attributes.Register();
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::SanitizeFloat(m_Mesh.Num()));
 
 	FMeshDescriptionBuilder meshDescBuilder;
 	meshDescBuilder.SetMeshDescription(&meshDesc);
@@ -423,6 +363,253 @@ void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
 	mesh->SetStaticMesh(staticMesh);
 }
 
+Index UMeshGenerator::GetRandomCube()
+{
+	// get a random cube that isn't index
+
+	TArray<Index> foundCubes;
+
+	for (int z = 0; z < m_MeshMap.Num(); z++)
+	{
+		for (int y = 0; y < m_MeshMap[z].row.Num(); y++)
+		{
+			for (int x = 0; x < m_MeshMap[z].row[y].col.Num(); x++)
+			{
+				if (m_MeshMap[z].row[y].col[x])
+				{
+					Index foundCube;
+					foundCube.x = x;
+					foundCube.y = y;
+					foundCube.z = z;
+					foundCubes.Add(foundCube);
+				}
+			}
+		}
+	}
+
+	if (foundCubes.Num() <= 0)
+	{
+		Index invalidIndex;
+		invalidIndex.x = -1;
+		return invalidIndex;
+	}
+	else
+	{
+		return foundCubes[FMath::RandRange(0, foundCubes.Num() - 1)];
+	}
+}
+
+bool UMeshGenerator::IsIndexConnected(Index start, Index end)
+{
+	TArray<Index> openList;
+	TArray<Index> closedList;
+
+	openList.Add(start);
+
+	while (openList.Num() > 0)
+	{
+		Index closestIndex;
+		closestIndex.x = -1;
+
+		for (Index item : openList)
+		{
+			if (closestIndex.x < 0)
+			{
+				closestIndex = item;
+			}
+			else
+			{
+				int32 oldManhattanDistance = abs(closestIndex.x - end.x) + abs(closestIndex.y - end.y) + abs(closestIndex.z - end.z);
+				int32 newManhattanDistance = abs(item.x - end.x) + abs(item.y - end.y) + abs(item.z - end.z);
+				if (newManhattanDistance < oldManhattanDistance)
+				{
+					closestIndex = item;
+				}
+			}
+		}
+
+		if (closestIndex == end)
+		{
+			return true;
+		}
+
+		closedList.Add(closestIndex);
+
+		TArray<Index> adjacentElements = GetAdjacentItems(closestIndex);
+		for (Index index : adjacentElements)
+		{
+			if (index.x < 0 || index.x >= m_XBounds || index.y < 0 || index.y >= m_YBounds || index.z < 0 || index.z >= m_ZBounds)
+			{
+				// invalid
+			}
+			else
+			{
+				if (m_MeshMap[index.z].row[index.y].col[index.x])
+				{
+					openList.Add(index);
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+TArray<Index> UMeshGenerator::GetAdjacentItems(Index index)
+{
+	TArray<Index> connectedIndices;
+
+	Index connectedIndex;
+
+	connectedIndex.x = index.x - 1;
+	connectedIndex.y = index.y;
+	connectedIndex.z = index.z;
+	connectedIndices.Add(connectedIndex);
+
+	connectedIndex.x = index.x + 1;
+	connectedIndex.y = index.y;
+	connectedIndex.z = index.z;
+	connectedIndices.Add(connectedIndex);
+
+	connectedIndex.x = index.x;
+	connectedIndex.y = index.y - 1;
+	connectedIndex.z = index.z;
+	connectedIndices.Add(connectedIndex);
+
+	connectedIndex.x = index.x;
+	connectedIndex.y = index.y + 1;
+	connectedIndex.z = index.z;
+	connectedIndices.Add(connectedIndex);
+
+	connectedIndex.x = index.x;
+	connectedIndex.y = index.y;
+	connectedIndex.z = index.z - 1;
+	connectedIndices.Add(connectedIndex);
+
+	connectedIndex.x = index.x;
+	connectedIndex.y = index.y;
+	connectedIndex.z = index.z + 1;
+	connectedIndices.Add(connectedIndex);
+
+	return connectedIndices;
+}
+
+TArray<FVector> UMeshGenerator::GenerateCube(FVector centrePoint, FVector offset)
+{
+	TArray<FVector> points;
+
+	// FRONT
+
+	// triangle 1
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // top right
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // bottom right
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // bottom left
+
+	// triangle 2
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // bottom left
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // top left
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // top right
+
+	// BACK
+
+	// triangle 1
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // bottom left
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // bottom right
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // top right
+
+	// triangle 2
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // top right
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // top left
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // bottom left
+
+	// TOP
+
+	// triangle 1
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // back right
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // forward right
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // forward left
+
+	// triangle 2
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // forward left
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // back left
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // back right
+
+	// BOTTOM
+
+	// triangle 1
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // forward left
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // forward right
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // back right
+
+	// triangle 2
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // back right
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // back left
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // forward left
+
+	// LEFT
+
+	// triangle 1
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // back bottom
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // forward top
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // forward bottom 
+
+	// triangle 2
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // back bottom
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // back top
+
+	points.Add(FVector{ centrePoint.X - (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // forward top
+
+	// RIGHT
+
+	// triangle 1
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // forward bottom 
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // forward top
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // back bottom
+
+	// triangle 2
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y + (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // forward top
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z + (KSIZEOFCUBE / 2) } - offset); // back top
+
+	points.Add(FVector{ centrePoint.X + (KSIZEOFCUBE / 2), centrePoint.Y - (KSIZEOFCUBE / 2), centrePoint.Z - (KSIZEOFCUBE / 2) } - offset); // back bottom
+
+	return points;
+
+}
+
 TArray<Face> UMeshGenerator::ConstructFaces()
 {
 	TArray<Face> faces;
@@ -430,7 +617,7 @@ TArray<Face> UMeshGenerator::ConstructFaces()
 	for (int i = 0; i < m_Mesh.Num(); i++)
 	{
 		// find the four closest points
-		
+
 		TArray<FVector> closestPoints;
 		for (int j = 0; j < KNUMBEROFCLOSESTPOINTS; j++)
 		{
@@ -493,7 +680,7 @@ TArray<Face> UMeshGenerator::ConstructFaces()
 			{
 				basePoint = closestPoints[j];
 			}
-			
+
 		}
 
 
@@ -543,7 +730,7 @@ TArray<Face> UMeshGenerator::ConstructFaces()
 		}
 	}
 
-	
+
 	return faces;
 }
 
@@ -626,7 +813,7 @@ ConvexHull UMeshGenerator::ConstructHull(const TArray<FVector>& points) // incom
 	newHull.points.Add(lowestPoint);
 	newHull.points.Add(leftMostPoint);
 	newHull.points.Add(rightMostPoint);
-	
+
 	for (int i = 0; i < setOfPoints.Num(); i++)
 	{
 		// add rest of points to hull info
