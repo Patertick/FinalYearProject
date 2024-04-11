@@ -253,6 +253,8 @@ public:
 
 	// action functions
 
+	void UseAction(ActionState action);
+
 	void CallAction(Action action);
 
 	void SetAction(Action action) { m_CurrentAction = action; }
@@ -290,15 +292,6 @@ public:
 
 	TArray<TEnumAsByte<Quality>> GetQualitiesFromMemory() { return m_MemoryBrain->GetQualities(); }
 
-	// null state
-
-	State NULLState() {
-		State nullState;
-		nullState.tile = nullptr;
-		nullState.actionState = ActionState::DoingNothing;
-		return nullState;
-	}
-
 	// Emotion functions
 
 	void SendMessageToEmotionBrain(TPair<Emotion, float> message);
@@ -315,17 +308,13 @@ public:
 
 	bool CallIsNPCInMemory() { return m_MemoryBrain->IsNPCInMemory(); }
 
-	void ThisNPCEscaped() {
-		m_PlanningBrain->GetInitialState().tile->SetType(TileType::None);
-		m_HasEscaped = true; // has escaped
-		Death(); // kill npc
-	}
-
-	float CallGetTimeBeforeLastScenario() { return m_PlanningBrain->GetTimeBeforeLastScenario(); }
-	float CallGetLastTimeBeforeLastScenario() { return m_PlanningBrain->GetLastTimeBeforeLastScenario(); }
 	float GetDamageDealt() { return m_DamageDealt; }
 	float GetLastDamageDealt() { return m_LastDamageDealt; }
 	float GetDamage() { return m_Damage; }
+
+	State CallGetCurrentState() { return m_PlanningBrain->GetCurrentState(); }
+
+	State CallGetLastState() { return m_PlanningBrain->GetLastState(); }
 
 	// Goal creation getters
 

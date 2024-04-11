@@ -504,6 +504,11 @@ State ANPC::Ability(State startState, State endState)
 
 }
 
+void ANPC::UseAction(ActionState action)
+{
+	// closed loop, for each action run until conditions are satisfied
+}
+
 void ANPC::CallAction(Action action)
 {
 	State currentState;

@@ -64,12 +64,13 @@ enum ActionState
 };
 
 struct State {
-	ATile3D* tile; // tile the NPC is standing on
-	ActionState actionState; // current NPC action state (what is being done)
+	int32 numberOfEnemiesInRange;
+	int32 numberOfAlliesInRange;
+	int32 healthPercentage;
 
 	bool operator==(const State& other) const
 	{
-		if (tile == other.tile && actionState == other.actionState)
+		if (healthPercentage == other.healthPercentage && numberOfAlliesInRange == other.numberOfAlliesInRange && numberOfEnemiesInRange == other.numberOfEnemiesInRange)
 		{
 			return true;
 		}
@@ -78,8 +79,9 @@ struct State {
 
 	void SetState(State other)
 	{
-		tile = other.tile;
-		actionState = other.actionState;
+		healthPercentage = other.healthPercentage;
+		numberOfAlliesInRange = other.numberOfAlliesInRange;
+		numberOfEnemiesInRange = other.numberOfEnemiesInRange;
 	}
 };
 
@@ -98,15 +100,13 @@ enum Function
 
 
 struct QNode {
-	WorldState worldState;
-	NPCAction action;
+	State currentState;
+	ActionState action;
 	float value; // between 0.0 and 1.0
 
 	bool operator==(QNode other)
 	{
-		if (worldState.npcStates.Num() <= 0) return false;
-
-		if (worldState == other.worldState)
+		if (currentState == other.currentState)
 		{
 			if (action == other.action)
 			{
@@ -114,6 +114,17 @@ struct QNode {
 			}
 		}
 		return false;
+	}
+	bool operator!=(QNode other)
+	{
+		if (currentState == other.currentState)
+		{
+			if (action == other.action)
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 };
 
@@ -215,6 +226,9 @@ private:
 
 	AActor* m_Focus{ nullptr }; // NPCs current focus/objective
 
+	const float KSENSORYRANGE{ 1000.0f }; // the range at which enemies/allies can be sensed
+	const int32 KNUMBEROFPOSSIBLEACTIONS{ 8 };
+
 	// weights for use in altering A* (from djikstra's to best first search)
 	float m_HeuristicWeight{ 0.5f };
 
@@ -242,19 +256,17 @@ private:
 
 	TArray<QNode> m_QValues; // all Q values according to world state
 
+	int32 m_NumberOfAllies{ 0 };
+	int32 m_NumberOfEnemies{ 0 };
+
 	float m_LearningRate{ 0.7f };
 	float m_ExplorationRate{ 0.5f };
 	int32 m_MaxWalkLength{ 10 }; // number of past actions to be stored max
 
 	TArray<QNode> m_PastActionsQNodes;
 
-	// Genetic algorithm variables
-
-	TArray<Action> m_CurrentSetOfActions;
-	TArray<Action> m_MutatedSetOfActions;
-
-	float m_TimeBeforeLastScenario{ 0.0f };
-	float m_LastTimeBeforeLastScenario{ 0.0f };
+	QNode m_CurrentNode;
+	State m_CurrentState;
 
 	// state manager
 
@@ -283,8 +295,6 @@ public:
 	void SetFocus(AActor* focus) { m_Focus = focus; }
 	AActor* GetFocus() { return m_Focus; }
 
-	TArray<Action> CreateAttackActions(int32 numberOfAttacks, State goal, ATile3D* startTile);
-
 	// A* functions
 
 	// only start and end tile are needed, each tile stores connected tiles so that's our search space
@@ -296,49 +306,26 @@ public:
 	// get initial state and set initial state
 
 	State GetInitialState() { return m_InitialState; }
-	void SetInitialState(ATile3D* newTile, ActionState newActionState) {
-		m_InitialState.actionState = newActionState;
-		m_InitialState.tile = newTile;
-	}
 
 	// Action generation
 
-	FString GenerateRandomAction();
-	void CreateNextRandomAction(); // random action
+	ActionState GenerateRandomAction();
 
-	void CreateQValues(WorldState state); // create Q values for this NPC
+	ActionState GetBestQNodeAction(State state);
 
-	float EvaluateAction(); // pass in Q nodes action, Q nodes world state and resultant (current) world state as parameter
-	bool WasLastActionSignificant(); // store last action and last world state to check for significant actions
-	void CreateNextAction(); // Q learning algorithm
+	void CreatePossibleStates();
 
-	void AddNPCToMapStateManager(int32 index, float health, FVector position);
-	void AppendMapStateManager(ATile3D* currentTile, NPCAction currentAction);
+	void CreateQValues(); // create Q values for this NPC
 
 	FVector2D GetDirection(ATile3D* startTile, ATile3D* endTile);
 
-	TArray<Action> GenerateArrayOfActions();
-
-	TArray<Action> MutateActions(const TArray<Action>& actions);
-	float EvaluateActions(const TArray<Action>& actions);
-
-	void AddMovePathToActionQueue(Path movePath);
+	float EvaluateAction(State first, State second);
 
 	void EmptyActionQueue() { m_ActionQueue.Empty(); }
 
-	float GetTimeBeforeLastScenario() { return m_TimeBeforeLastScenario; }
-	float GetLastTimeBeforeLastScenario() { return m_LastTimeBeforeLastScenario; }
-
-	int32 FindNumberOfRedundantActions(const TArray<Action>& actions);
-	
-	// goal creation functions
-
-
-
-	//void SetGoal(State newGoal) { m_AutonomousGoal = newGoal; }
-
 	bool IsActionQueueEmpty() { return m_ActionQueue.IsEmpty(); }
 
-	//ActionState GetGoalState() { return m_AutonomousGoal.actionState; }
-	//ATile3D* GetGoalTile() { return m_AutonomousGoal.tile; }
+	State GetCurrentState();
+
+	State GetLastState() { return m_CurrentState; }
 };
