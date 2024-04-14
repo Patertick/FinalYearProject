@@ -92,6 +92,10 @@ public:
 		bool m_IsSeen{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 		bool m_RunQLearning{ false };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+		bool m_ShouldGenerateName{ true };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
+		bool m_ShouldGenerateMesh{ true };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CharacterType)
 		TEnumAsByte<CharacterType> m_CharacterType{ CharacterType::OtherCharacter };
 
@@ -100,13 +104,6 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-	// action functions
-	State Move(State startState, State endState);
-	//bool Move(const Path& path, int32& pointOnPath);
-	State Attack(State startState, State endState);
-	State Interact(State startState, State endState);
-	State Ability(State startState, State endState);
 
 private:
 	Directive m_Directive{ Directive::DoNothing };
@@ -145,6 +142,8 @@ private:
 	float m_WalkSpeed{ 2.0f };
 
 	float m_FollowRange{ KTILEMAXDISTANCE * 2 };
+
+	ATile3D* m_SearchTargetTile{ nullptr };
 
 	// attacking variables
 
@@ -259,7 +258,7 @@ public:
 
 	void SetAction(Action action) { m_CurrentAction = action; }
 
-	void CreateMovePath(ATile3D* startTile, ATile3D* endTile); // create a path to move through, the action managers chosen mobility action will be used to modulate
+	Path CreateMovePath(ATile3D* startTile, ATile3D* endTile); // create a path to move through, the action managers chosen mobility action will be used to modulate
 	void CreateAttack(ATile3D* startTile); // create an attack, the action managers chosen offensive action will be used to modulate
 	
 
@@ -299,6 +298,11 @@ public:
 	// Planning functions
 
 	//void CallSetGoal(State newGoal) { m_PlanningBrain->SetGoal(newGoal); }
+
+	bool IsThreat() { return m_Threat; }
+
+	ANPC* FindClosestNPC(bool canBeAlly = true, bool canBeEnemy = true);
+	AInteractable* FindClosestInteractable();
 
 	int32 GetIndex() { return m_Index; }
 

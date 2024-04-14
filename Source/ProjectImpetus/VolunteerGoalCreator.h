@@ -15,6 +15,5 @@ class PROJECTIMPETUS_API UVolunteerGoalCreator : public UGoalCreator
 	GENERATED_BODY()
 
 public:
-	State CreateGoal() override final;
 	
 };

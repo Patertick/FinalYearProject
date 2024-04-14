@@ -30,29 +30,21 @@ void UPlanningBrain::BeginPlay()
 
 	// SET POSSIBLE STATES
 
-	State newState; // temp state
 	for (AActor* tile : Tiles)
 	{
 		m_MapData.Add(Cast<ATile3D>(tile));
 	}
 
 	// for every possible state, create a Q Node for each possible action
-
-	CreateQValues();	
-
-	m_CurrentState = GetCurrentState();
 	m_CurrentNode = QNode{};
-
-	if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient))
-	{
-		m_LearningRate = 0.9f;
-	}
 }
 
 // Called every frame
 void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (m_NPCRef == nullptr) return;
 
 	if (!m_NPCRef->GetHasDied())
 	{
@@ -102,7 +94,7 @@ void UPlanningBrain::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 		m_CurrentState = newState;
 
-		for (QNode node : m_QValues)
+		for (const QNode& node : m_QValues)
 		{
 			if (node.currentState == newState && node.action == action)
 			{
@@ -157,12 +149,13 @@ float UPlanningBrain::EvaluateAction(State first, State second)
 			{
 				if (Cast<ANPC>(npc) != m_NPCRef)
 				{
-					if (Cast<ANPC>(npc)->m_Threat != m_NPCRef->m_Threat)
+					if (Cast<ANPC>(npc)->m_Threat == m_NPCRef->m_Threat)
 					{
 						// get npc current state
 						// if the current health is higher than the current state health, this NPC has likely healed them
 						// if allies gained health increase reward
 						FVector2D otherLocation = FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y };
+						numberOfAllies++;
 						if (FVector2D::Distance(otherLocation, selfLocation) <= KSENSORYRANGE)
 						{
 							if (Cast<ANPC>(npc)->CallGetCurrentState().healthPercentage > Cast<ANPC>(npc)->CallGetLastState().healthPercentage)
@@ -179,9 +172,12 @@ float UPlanningBrain::EvaluateAction(State first, State second)
 				}
 			}
 
-			rewardAverage /= numberOfAllies;
+			if (numberOfAllies != 0)
+			{
+				rewardAverage /= numberOfAllies;
 
-			totalWeight += rewardAverage;
+				totalWeight += rewardAverage;
+			}
 		}
 		else if (quality == Quality::Evil)
 		{
@@ -195,12 +191,13 @@ float UPlanningBrain::EvaluateAction(State first, State second)
 			{
 				if (Cast<ANPC>(npc) != m_NPCRef)
 				{
-					if (Cast<ANPC>(npc)->m_Threat != m_NPCRef->m_Threat)
+					if (Cast<ANPC>(npc)->m_Threat == m_NPCRef->m_Threat)
 					{
 						// get npc current state
 						// if the current health is higher than the current state health, this NPC has likely healed them
 						// if allies lost health increase reward
 						FVector2D otherLocation = FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y };
+						numberOfAllies++;
 						if (FVector2D::Distance(otherLocation, selfLocation) <= KSENSORYRANGE)
 						{
 							if (Cast<ANPC>(npc)->CallGetCurrentState().healthPercentage < Cast<ANPC>(npc)->CallGetLastState().healthPercentage)
@@ -217,9 +214,12 @@ float UPlanningBrain::EvaluateAction(State first, State second)
 				}
 			}
 
-			rewardAverage /= numberOfAllies;
+			if (numberOfAllies != 0)
+			{
+				rewardAverage /= numberOfAllies;
 
-			totalWeight += rewardAverage;
+				totalWeight += rewardAverage;
+			}
 		}
 		else if (quality == Quality::Violent)
 		{
@@ -266,7 +266,7 @@ float UPlanningBrain::EvaluateAction(State first, State second)
 
 State UPlanningBrain::GetCurrentState()
 {
-	State currentState;
+	State currentState = State{};
 	currentState.healthPercentage = static_cast<int32>(m_NPCRef->GetHealth() / m_NPCRef->GetMaxHealth());
 
 	TArray<AActor*> NPCs;
@@ -298,6 +298,17 @@ State UPlanningBrain::GetCurrentState()
 	currentState.numberOfEnemiesInRange = numberOfEnemiesInRange;
 
 	return currentState;
+}
+
+void UPlanningBrain::GenerateStartingValues()
+{
+	CreateQValues();
+	m_CurrentState = GetCurrentState();
+
+	if (m_NPCRef->GetQualitiesFromMemory().Contains(Quality::Efficient) && m_LearningRate != 0.9f)
+	{
+		m_LearningRate = 0.9f;
+	}
 }
 
 FVector2D UPlanningBrain::GetDirection(ATile3D* startTile, ATile3D* endTile)
@@ -349,11 +360,12 @@ void UPlanningBrain::CreatePossibleStates()
 	{
 		if (Cast<ANPC>(npc) != m_NPCRef)
 		{
-			if (Cast<ANPC>(npc)->m_Threat == m_NPCRef->m_Threat)
+			if (Cast<ANPC>(npc)->IsThreat() != m_NPCRef->IsThreat())
 			{
 				numberOfEnemies++;
 			}
-			else {
+			else 
+			{
 				numberOfAllies++;
 			}
 		}
@@ -362,17 +374,48 @@ void UPlanningBrain::CreatePossibleStates()
 	m_NumberOfAllies = numberOfAllies;
 	m_NumberOfEnemies = numberOfEnemies;
 
-	for (int i = 0; i < numberOfAllies; i++)
+	if (numberOfAllies <= 0)
 	{
-		for (int j = 0; j < numberOfEnemies; j++)
+		if (numberOfEnemies <= 0)
 		{
 			for (int k = 0; k < static_cast<int32>(m_NPCRef->GetHealth() / m_NPCRef->GetMaxHealth()); k++)
 			{
-				State newState;
-				newState.numberOfAlliesInRange = i;
-				newState.numberOfEnemiesInRange = j;
+				State newState = State{};
+				newState.numberOfAlliesInRange = 0;
+				newState.numberOfEnemiesInRange = 0;
 				newState.healthPercentage = k;
 				m_PossibleStates.Add(newState);
+			}
+		}
+		else
+		{
+			for (int j = 0; j < numberOfEnemies; j++)
+			{
+				for (int k = 0; k < static_cast<int32>(m_NPCRef->GetHealth() / m_NPCRef->GetMaxHealth()); k++)
+				{
+					State newState = State{};
+					newState.numberOfAlliesInRange = 0;
+					newState.numberOfEnemiesInRange = j;
+					newState.healthPercentage = k;
+					m_PossibleStates.Add(newState);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numberOfAllies; i++)
+		{
+			for (int j = 0; j < numberOfEnemies; j++)
+			{
+				for (int k = 0; k < static_cast<int32>(m_NPCRef->GetHealth() / m_NPCRef->GetMaxHealth()); k++)
+				{
+					State newState = State{};
+					newState.numberOfAlliesInRange = i;
+					newState.numberOfEnemiesInRange = j;
+					newState.healthPercentage = k;
+					m_PossibleStates.Add(newState);
+				}
 			}
 		}
 	}
@@ -394,8 +437,6 @@ void UPlanningBrain::CreateQValues()
 		newNode.action = ActionState::Searching;
 		if (!m_QValues.Contains(newNode)) m_QValues.Add(newNode);
 		newNode.action = ActionState::Following;
-		if (!m_QValues.Contains(newNode)) m_QValues.Add(newNode);
-		newNode.action = ActionState::MovingToLocation;
 		if (!m_QValues.Contains(newNode)) m_QValues.Add(newNode);
 		newNode.action = ActionState::RunningAway;
 		if (!m_QValues.Contains(newNode)) m_QValues.Add(newNode);

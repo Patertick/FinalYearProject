@@ -15,5 +15,4 @@ class PROJECTIMPETUS_API UAgentGoalCreator : public UGoalCreator
 	GENERATED_BODY()
 
 public:
-	State CreateGoal() override final;
 };

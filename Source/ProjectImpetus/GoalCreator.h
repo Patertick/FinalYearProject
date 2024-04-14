@@ -39,8 +39,6 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	virtual State CreateGoal() { return State(); } // virtual function, must be overridden by a child or it returns a null state
-
 	UFUNCTION(BlueprintCallable, Category = SetNPC)
 		void SetNPC(ANPC* npc) { m_NPCRef = npc; }
 

@@ -57,16 +57,15 @@ enum ActionState
 	Interacting UMETA(DisplayName = "Interacting with something"),
 	Searching UMETA(DisplayName = "Searching for something"),
 	Following UMETA(DisplayName = "Following someone"),
-	MovingToLocation UMETA(DisplayName = "Moving to location"),
 	RunningAway UMETA(DisplayName = "Running away"),
 	UsingAbility UMETA(DisplayName = "Using Special Ability"),
 	DoingNothing UMETA(DisplayName = "Not doing anything"),
 };
 
 struct State {
-	int32 numberOfEnemiesInRange;
-	int32 numberOfAlliesInRange;
-	int32 healthPercentage;
+	int32 numberOfEnemiesInRange{ 0 };
+	int32 numberOfAlliesInRange{ 0 };
+	int32 healthPercentage{ 0 };
 
 	bool operator==(const State& other) const
 	{
@@ -104,7 +103,7 @@ struct QNode {
 	ActionState action;
 	float value; // between 0.0 and 1.0
 
-	bool operator==(QNode other)
+	bool operator==(const QNode other) const
 	{
 		if (currentState == other.currentState)
 		{
@@ -115,7 +114,7 @@ struct QNode {
 		}
 		return false;
 	}
-	bool operator!=(QNode other)
+	bool operator!=(const QNode other) const
 	{
 		if (currentState == other.currentState)
 		{
@@ -227,7 +226,7 @@ private:
 	AActor* m_Focus{ nullptr }; // NPCs current focus/objective
 
 	const float KSENSORYRANGE{ 1000.0f }; // the range at which enemies/allies can be sensed
-	const int32 KNUMBEROFPOSSIBLEACTIONS{ 8 };
+	const int32 KNUMBEROFPOSSIBLEACTIONS{ 7 };
 
 	// weights for use in altering A* (from djikstra's to best first search)
 	float m_HeuristicWeight{ 0.5f };
@@ -328,4 +327,6 @@ public:
 	State GetCurrentState();
 
 	State GetLastState() { return m_CurrentState; }
+
+	void GenerateStartingValues();
 };
