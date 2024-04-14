@@ -329,4 +329,6 @@ public:
 	State GetLastState() { return m_CurrentState; }
 
 	void GenerateStartingValues();
+
+	int32 GetNumberOfEnemies() { return m_NumberOfEnemies; }
 };

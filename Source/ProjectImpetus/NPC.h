@@ -145,6 +145,8 @@ private:
 
 	ATile3D* m_SearchTargetTile{ nullptr };
 
+	ATile3D* m_CurrentTile{ nullptr };
+
 	// attacking variables
 
 	AActor* m_AttackingEnemy{ nullptr };
@@ -160,6 +162,9 @@ private:
 	float m_LastDamageDealt{ 0.0f };
 
 	bool m_CanBeTargeted{ true };
+
+	float m_DeathTimer{ 5.0f };
+	const float KMAXDEATHTIMER{ 5.0f };
 
 	// acting
 
@@ -260,6 +265,8 @@ public:
 
 	Path CreateMovePath(ATile3D* startTile, ATile3D* endTile); // create a path to move through, the action managers chosen mobility action will be used to modulate
 	void CreateAttack(ATile3D* startTile); // create an attack, the action managers chosen offensive action will be used to modulate
+
+	ATile3D* FindClosestTileToActor(AActor* actor);
 	
 
 	bool IsExecutingAction() {
@@ -313,6 +320,7 @@ public:
 	bool CallIsNPCInMemory() { return m_MemoryBrain->IsNPCInMemory(); }
 
 	float GetDamageDealt() { return m_DamageDealt; }
+	void SetDamageDealt(float newDamageDealt) { m_DamageDealt = newDamageDealt; }
 	float GetLastDamageDealt() { return m_LastDamageDealt; }
 	float GetDamage() { return m_Damage; }
 

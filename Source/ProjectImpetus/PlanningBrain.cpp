@@ -227,6 +227,7 @@ float UPlanningBrain::EvaluateAction(State first, State second)
 			if (m_NPCRef->GetDamageDealt() > 0.0f)
 			{
 				totalWeight++;
+				m_NPCRef->SetDamageDealt(0.0f);
 			}
 		}
 		else if (quality == Quality::Pacifist)
@@ -235,6 +236,7 @@ float UPlanningBrain::EvaluateAction(State first, State second)
 			if (m_NPCRef->GetDamageDealt() > 0.0f)
 			{
 				totalWeight--;
+				m_NPCRef->SetDamageDealt(0.0f);
 			}
 		}
 		else if (quality == Quality::Lazy)

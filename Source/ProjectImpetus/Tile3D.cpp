@@ -5,6 +5,7 @@
 #include <Kismet/GameplayStatics.h>
 #include <string>
 #include "NPC.h"
+#include <Operations/GroupTopologyDeformer.h>
 
 // Sets default values
 ATile3D::ATile3D()
@@ -44,20 +45,15 @@ void ATile3D::AttackTile(ANPC* attackingNPC)
 	// set as attacked
 	m_Attacked = true;
 	// find if an NPC is on the tile, if so, they are dealt damage
-	TArray<AActor*> NPC;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANPC::StaticClass(), NPC);
 
-
-	// find npc on tile (within 100 units counts as on the tile)
-	for (AActor* npc : NPC)
+	if (m_NPCOnTile != nullptr)
 	{
-		if (npc != this && FVector::Distance(npc->GetActorLocation(), GetActorLocation()) <= KTILESIZE)
-		{
-			// deal damage
-			UGameplayStatics::ApplyDamage(npc, attackingNPC->GetDamage(), nullptr, attackingNPC, NULL);
-			return;
-		}
+		// deal damage
+		UGameplayStatics::ApplyDamage(m_NPCOnTile, attackingNPC->GetDamage(), nullptr, attackingNPC, NULL);
+		attackingNPC->SetDamageDealt(attackingNPC->GetDamage());
 	}
+
+	m_Mesh->SetMaterial(0, m_AttackMaterial);
 }
 
 void ATile3D::FindConnectedTiles()
@@ -108,13 +104,17 @@ void ATile3D::FindConnectedTiles()
 // Called every frame
 void ATile3D::Tick(float DeltaTime)
 {
-	//Super::Tick(DeltaTime);
-	/*int count{ 0 };
-	if (m_Type == TileType::NPC)
+	if (m_Attacked)
 	{
-		FString tempString = "NPC" + GetName();
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, *tempString);
-	}*/
+		Super::Tick(DeltaTime);
+		m_AttackMaterialTimer -= DeltaTime;
+		if (m_AttackMaterialTimer <= 0.0f)
+		{
+			m_Attacked = false;
+			m_Mesh->SetMaterial(0, m_DefaultMaterial);
+			m_AttackMaterialTimer = KMAXATTACKTIMER;
+		}
+	}
 
 }
 

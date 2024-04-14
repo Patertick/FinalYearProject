@@ -43,64 +43,16 @@ Path ANPC::CreateMovePath(ATile3D* startTile, ATile3D* endTile)
 	m_CanUseActions = m_ActionManager->GetMobilityAction().canOtherActionsBeUsed;
 
 	Path newPath;
-
-	// is move ability able to change trajectory during move?
-	if (m_ActionManager->GetMobilityAction().canChangeTrajectory)
-	{
-		// create A* path to end tile
-		newPath = m_PlanningBrain->FindAStarPath(startTile, endTile);
-	}
-	else
-	{
-		// create straight line path to end tile (or wall if a wall is in the way)
-		bool endOfPath{ false };
-		ATile3D* currentTile = startTile;
-		while (endOfPath)
-		{
-			// find next tile using euclidean heuristic
-			ATile3D* closestToEndTile{ nullptr };
-			for (ConnectedTile adjacentTile : currentTile->GetConnectedTiles())
-			{
-				if (closestToEndTile == nullptr)
-				{
-					closestToEndTile = adjacentTile.ref;
-				}
-				else
-				{
-					float newTileDistance = FVector2D::Distance(FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y }, FVector2D{ endTile->GetActorLocation().X, endTile->GetActorLocation().Y });
-					float oldTileDistance = FVector2D::Distance(FVector2D{ closestToEndTile->GetActorLocation().X, closestToEndTile->GetActorLocation().Y }, FVector2D{ endTile->GetActorLocation().X, endTile->GetActorLocation().Y });
-					if (newTileDistance < oldTileDistance)
-					{
-						closestToEndTile = adjacentTile.ref;
-					}
-				}
-			}
-
-			if (closestToEndTile == nullptr) break; // this shouldn't happen, but catch anyway
-
-			// add to new path
-			if (closestToEndTile->GetType() != TileType::None) // if its a wall, end path creation
-			{
-				endOfPath = true;
-			}
-			else if (closestToEndTile == endTile) // also end path creation if we reached the end tile
-			{
-				endOfPath = true;
-				newPath.locations.Add(FVector2D{ closestToEndTile->GetActorLocation().X, closestToEndTile->GetActorLocation().Y });
-			}
-			else
-			{
-				newPath.locations.Add(FVector2D{ closestToEndTile->GetActorLocation().X, closestToEndTile->GetActorLocation().Y });
-			}
-
-		}
-	}
+	// create A* path to end tile
+	newPath = m_PlanningBrain->FindAStarPath(startTile, endTile);
+	
 
 	return newPath;
 }
 
 void ANPC::CreateAttack(ATile3D* startTile)
 {
+	if (m_HasDied) return;
 	float distance = FVector2D::Distance(FVector2D{ startTile->GetActorLocation().X, startTile->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
 	// is the start tile within attack range?
 	if (distance > m_AttackRange)
@@ -112,36 +64,43 @@ void ANPC::CreateAttack(ATile3D* startTile)
 		TArray<ANPC*> reachedNPC;
 		// create a path between all enemies in range
 		TArray<ATile3D*> attackTiles;
-		for (int i = 0; i < m_ActionManager->GetOffensiveAction().numberOfTargetableTiles; i++)
+
+		// find closest enemy
+		for (AActor* actor : NPC)
 		{
-			// find closest enemy
-			for (AActor* actor : NPC)
+			if (Cast<ANPC>(actor)->m_Threat != m_Threat && !reachedNPC.Contains(Cast<ANPC>(actor)))
 			{
-				if(Cast<ANPC>(actor)->m_Threat != m_Threat && !reachedNPC.Contains(Cast<ANPC>(actor)))
+				if (closestNPC == nullptr)
 				{
-					if (closestNPC == nullptr)
+					closestNPC = Cast<ANPC>(actor);
+				}
+				else
+				{
+					float newTileDistance = FVector2D::Distance(FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					float oldTileDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					if (newTileDistance < oldTileDistance)
 					{
 						closestNPC = Cast<ANPC>(actor);
 					}
-					else
-					{
-						float newTileDistance = FVector2D::Distance(FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-						float oldTileDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-						if (newTileDistance < oldTileDistance)
-						{
-							closestNPC = Cast<ANPC>(actor);
-						}
-					}
 				}
 			}
+		}
 
-			if (closestNPC == nullptr) break;
+		if (closestNPC == nullptr) return;
 
+		attackTiles.Add(startTile);
+
+		for (int i = 0; i < m_ActionManager->GetOffensiveAction().numberOfTargetableTiles; i++)
+		{
 			// is the current location the same as current enemy?
 			if (FVector2D{ attackTiles[attackTiles.Num() - 1]->GetActorLocation().X, attackTiles[attackTiles.Num() - 1]->GetActorLocation().Y }.Equals(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }))
 			{
 				// add to reached npcs
 				reachedNPC.Add(closestNPC);
+				if (reachedNPC.Num() >= m_PlanningBrain->GetNumberOfEnemies())
+				{
+					break;
+				}
 			}
 			else
 			{
@@ -203,12 +162,50 @@ void ANPC::CreateAttack(ATile3D* startTile)
 	}
 }
 
+ATile3D* ANPC::FindClosestTileToActor(AActor* actor)
+{
+	ATile3D* tile = m_PlanningBrain->FindClosestTile(FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y });
+
+	ATile3D* closestTile{ nullptr };
+
+	for (ConnectedTile adjacentTile : tile->GetConnectedTiles())
+	{
+		if (closestTile == nullptr)
+		{
+			closestTile = adjacentTile.ref;
+		}
+		else
+		{
+			float oldDistance = FVector2D::Distance(FVector2D{ closestTile->GetActorLocation().X, closestTile->GetActorLocation().Y }, FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y });
+			float newDistance = FVector2D::Distance(FVector2D{ adjacentTile.ref->GetActorLocation().X, adjacentTile.ref->GetActorLocation().Y }, FVector2D{ actor->GetActorLocation().X, actor->GetActorLocation().Y });
+			if (newDistance < oldDistance)
+			{
+				closestTile = adjacentTile.ref;
+			}
+		}
+	}
+	return closestTile;
+}
+
 // Called every frame
 void ANPC::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 	m_DeltaTime = DeltaTime;
+	
+	if (m_HasDied)
+	{
+		if (m_DeathTimer >= 0.0f)
+		{
+			m_DeathTimer -= DeltaTime;
+			return;
+		}
+		else
+		{
+			Respawn();
+		}
+	}
 
 	if (!ValidNPC()) return;
 
@@ -216,6 +213,25 @@ void ANPC::Tick(float DeltaTime)
 	{
 		CallFindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y })->TurnToFloor();
 	}
+
+
+	if (m_CurrentTile == nullptr)
+	{
+		m_CurrentTile = m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+	}
+	else
+	{
+		ATile3D* closestTile = m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+		if (closestTile != m_CurrentTile)
+		{
+			closestTile->SetNPCOnTile(this);
+			closestTile->SetType(TileType::NPC);
+			m_CurrentTile->SetNPCOnTile(nullptr);
+			m_CurrentTile->SetType(TileType::None);
+			m_CurrentTile = closestTile;
+		}
+	}
+
 
 	/*if (!m_Threat)
 	{
@@ -225,6 +241,7 @@ void ANPC::Tick(float DeltaTime)
 
 	if (m_Health <= 0.0f)
 	{
+		m_DeathTimer = KMAXDEATHTIMER;
 		m_HasDied = true;
 		Death();
 		return;
@@ -250,32 +267,54 @@ void ANPC::Tick(float DeltaTime)
 
 void ANPC::Death()
 {
-	// has this scenario ended?
 	this->SetActorEnableCollision(false);
 	this->SetActorHiddenInGame(true);
-	if (m_Threat)
-	{
-		Respawn();
-	}
-	//Respawn();
+	m_CurrentTile->SetType(TileType::None);
+	m_CurrentTile->SetNPCOnTile(nullptr);
 }
 
 void ANPC::Respawn()
 {
-	m_PlanningBrain->EmptyActionQueue();
-	m_LastDamageDealt = m_DamageDealt;
-	m_DamageDealt = 0.0f;
 	m_HasDied = false;
-	m_HasEscaped = false;
-	m_EndOfScenario = true;
-	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, TEXT("Respawn"));
 	this->SetActorEnableCollision(true);
 	this->SetActorHiddenInGame(false);
-	// reset properties
-	m_CurrentAction.actionType = Function::NullAction;
-	FVector2D npcLocation = FVector2D{ m_StartTile->GetActorLocation().X, m_StartTile->GetActorLocation().Y};
-	SetActorLocation(FVector(npcLocation.X, npcLocation.Y, 0.0f));
 	m_Health = m_MaxHealth;
+	// spawn in random tile
+
+	TArray<AActor*> tiles;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATile3D::StaticClass(), tiles);
+
+	TArray<ATile3D*> possibleTiles;
+
+	if (m_Threat)
+	{
+		for (int i = 0; i < tiles.Num(); i++)
+		{
+			// remove non cell tiles
+			if (Cast<ATile3D>(tiles[i])->m_FloorType == FloorType::CellFloor && Cast<ATile3D>(tiles[i])->GetType() == TileType::None)
+			{
+				possibleTiles.Add(Cast<ATile3D>(tiles[i]));
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < tiles.Num(); i++)
+		{
+			// remove non reception tiles
+			if (Cast<ATile3D>(tiles[i])->m_FloorType == FloorType::ReceptionFloor && Cast<ATile3D>(tiles[i])->GetType() == TileType::None)
+			{
+				possibleTiles.Add(Cast<ATile3D>(tiles[i]));
+			}
+		}
+	}
+
+	m_CurrentTile = Cast<ATile3D>(possibleTiles[FMath::RandRange(0, possibleTiles.Num() - 1)]);
+
+	m_CurrentTile->SetType(TileType::NPC);
+	m_CurrentTile->SetNPCOnTile(this);
+
+	SetActorLocation(FVector{ m_CurrentTile->GetActorLocation().X, m_CurrentTile->GetActorLocation().Y, GetActorLocation().Z });
 }
 
 // Called to bind functionality to input
@@ -409,15 +448,28 @@ void ANPC::UseAction(ActionState action)
 		}
 		else
 		{
-			// move towards closest enemy
-			Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), m_PlanningBrain->FindClosestTile(FVector2D{ closestEnemy->GetActorLocation().X, closestEnemy->GetActorLocation().Y }));
-			// move towards first flag of the move path
-			if (movePath.locations.Num() <= 0) return;
-			FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-			moveDir.Normalize();
-			FVector newPos;
-			newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime);
-			newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime);
+			if (m_ActionManager->GetMobilityAction().speed <= 0.0f)
+			{
+				// teleport to final tile
+				SetActorLocation(FVector{ closestEnemy->GetActorLocation().X, closestEnemy->GetActorLocation().Y, GetActorLocation().Z });
+			}
+			else
+			{
+				// find closest adjacent tile to enemy
+
+				ATile3D* closestAdjacentTile = FindClosestTileToActor(closestEnemy);
+
+				// move towards closest enemy
+				Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), closestAdjacentTile);
+				// move towards first flag of the move path
+				if (movePath.locations.Num() <= 0) return;
+				FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+				moveDir.Normalize();
+				FVector newPos;
+				newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime * 10.0f);
+				newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime * 10.0f);
+				SetActorLocation(FVector{ newPos.X, newPos.Y, GetActorLocation().Z });
+			}
 		}
 	}
 	else if (action == ActionState::Interacting) // find the closest interactable and interact with it
@@ -432,13 +484,23 @@ void ANPC::UseAction(ActionState action)
 		}
 		else
 		{
-			Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), m_PlanningBrain->FindClosestTile(FVector2D{ closestInteractable->GetActorLocation().X, closestInteractable->GetActorLocation().Y }));
-			if (movePath.locations.Num() <= 0) return;
-			FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-			moveDir.Normalize();
-			FVector newPos;
-			newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime);
-			newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime);
+			if (m_ActionManager->GetMobilityAction().speed <= 0.0f)
+			{
+				// teleport to final tile
+				SetActorLocation(FVector{ closestInteractable->GetActorLocation().X, closestInteractable->GetActorLocation().Y, GetActorLocation().Z });
+			}
+			else
+			{
+				ATile3D* closestAdjacentTile = FindClosestTileToActor(closestInteractable);
+				Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), closestAdjacentTile);
+				if (movePath.locations.Num() <= 0) return;
+				FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+				moveDir.Normalize();
+				FVector newPos;
+				newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime * 10.0f);
+				newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime * 10.0f);
+				SetActorLocation(FVector{ newPos.X, newPos.Y, GetActorLocation().Z });
+			}
 		}
 	}
 	else if (action == ActionState::Searching) // move in a random direction (since this function is completely stochastic it should not override other actions)
@@ -491,13 +553,22 @@ void ANPC::UseAction(ActionState action)
 			}
 			else
 			{
-				Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), m_PlanningBrain->FindClosestTile(FVector2D{ m_SearchTargetTile->GetActorLocation().X, m_SearchTargetTile->GetActorLocation().Y }));
-				if (movePath.locations.Num() <= 0) return;
-				FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-				moveDir.Normalize();
-				FVector newPos;
-				newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime);
-				newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime);
+				if (m_ActionManager->GetMobilityAction().speed <= 0.0f)
+				{
+					// teleport to final tile
+					SetActorLocation(FVector{ m_SearchTargetTile->GetActorLocation().X, m_SearchTargetTile->GetActorLocation().Y, GetActorLocation().Z });
+				}
+				else
+				{
+					Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), m_SearchTargetTile);
+					if (movePath.locations.Num() <= 0) return;
+					FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+					moveDir.Normalize();
+					FVector newPos;
+					newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime * 10.0f);
+					newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime * 10.0f);
+					SetActorLocation(FVector{ newPos.X, newPos.Y, GetActorLocation().Z });
+				}
 			}
 		}
 	}
@@ -506,13 +577,23 @@ void ANPC::UseAction(ActionState action)
 		// find closest ally
 		ANPC* closestAlly = FindClosestNPC(true, false);
 		// move towards ally
-		Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), m_PlanningBrain->FindClosestTile(FVector2D{ closestAlly->GetActorLocation().X, closestAlly->GetActorLocation().Y }));
-		if (movePath.locations.Num() <= 0) return;
-		FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-		moveDir.Normalize();
-		FVector newPos;
-		newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime);
-		newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime);
+		if (m_ActionManager->GetMobilityAction().speed <= 0.0f)
+		{
+			// teleport to final tile
+			SetActorLocation(FVector{ closestAlly->GetActorLocation().X, closestAlly->GetActorLocation().Y, GetActorLocation().Z });
+		}
+		else
+		{
+			ATile3D* closestAdjacentTile = FindClosestTileToActor(closestAlly);
+			Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), closestAdjacentTile);
+			if (movePath.locations.Num() <= 0) return;
+			FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+			moveDir.Normalize();
+			FVector newPos;
+			newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime * 10.0f);
+			newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime * 10.0f);
+			SetActorLocation(FVector{ newPos.X, newPos.Y, GetActorLocation().Z });
+		}
 	}
 	else if (action == ActionState::RunningAway) // find all enemy positions within sensory range, find a direction they aren't in, move towards that direction
 	{
@@ -567,14 +648,24 @@ void ANPC::UseAction(ActionState action)
 
 		if (idealTile == nullptr) return;
 
-		// move towards this tile
-		Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), m_PlanningBrain->FindClosestTile(FVector2D{ idealTile->GetActorLocation().X, idealTile->GetActorLocation().Y }));
-		if (movePath.locations.Num() <= 0) return;
-		FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
-		moveDir.Normalize();
-		FVector newPos;
-		newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime);
-		newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime);
+
+		if (m_ActionManager->GetMobilityAction().speed <= 0.0f)
+		{
+			// teleport to final tile
+			SetActorLocation(FVector{ idealTile->GetActorLocation().X, idealTile->GetActorLocation().Y, GetActorLocation().Z });
+		}
+		else
+		{
+			// move towards this tile
+			Path movePath = CreateMovePath(m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }), idealTile);
+			if (movePath.locations.Num() <= 0) return;
+			FVector2D moveDir = movePath.locations[0] - FVector2D{ GetActorLocation().X, GetActorLocation().Y };
+			moveDir.Normalize();
+			FVector newPos;
+			newPos.X = GetActorLocation().X + (moveDir.X * m_WalkSpeed * m_DeltaTime * 10.0f);
+			newPos.Y = GetActorLocation().Y + (moveDir.Y * m_WalkSpeed * m_DeltaTime * 10.0f);
+			SetActorLocation(FVector{ newPos.X, newPos.Y, GetActorLocation().Z });
+		}
 	}
 	else if (action == ActionState::UsingAbility) // first, find what ability this NPC has, then compute the best place to use it (e.g. heal ability, heal closest injured ally)
 	{

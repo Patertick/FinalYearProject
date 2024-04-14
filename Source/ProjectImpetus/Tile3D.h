@@ -62,6 +62,10 @@ public:
 		bool m_StartedAsFloor{ false };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attacking)
 		bool m_Attacked{ false };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attacking)
+		UMaterialInterface* m_AttackMaterial { nullptr };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attacking)
+		UMaterialInterface* m_DefaultMaterial { nullptr };
 	
 
 protected:
@@ -71,9 +75,12 @@ protected:
 private:
 	const float KMAXTILEDISTANCE{ 150.0f };
 	TileType m_Type{ TileType::None };
+	ANPC* m_NPCOnTile{ nullptr };
 	TArray<ConnectedTile> m_connectedTiles;
 	float m_Weight{ 1.0f };
 
+	float m_AttackMaterialTimer{ 1.0f };
+	const float KMAXATTACKTIMER{ 1.0f };
 
 public:	
 	// Called every frame
@@ -111,6 +118,8 @@ public:
 	void AttackTile(ANPC* attackingNPC);
 
 	TArray<ConnectedTile> GetConnectedTiles() { return m_connectedTiles; }
+
+	void SetNPCOnTile(ANPC* npcOnTile) { m_NPCOnTile = npcOnTile; }
 
 	float GetWeight() { return m_Weight; }
 
