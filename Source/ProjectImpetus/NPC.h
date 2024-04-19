@@ -98,6 +98,9 @@ public:
 		bool m_ShouldGenerateMesh{ true };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CharacterType)
 		TEnumAsByte<CharacterType> m_CharacterType{ CharacterType::OtherCharacter };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshMat)
+		FStaticMaterial m_Material;
+
 
 	UStaticMeshComponent* m_Mesh;
 

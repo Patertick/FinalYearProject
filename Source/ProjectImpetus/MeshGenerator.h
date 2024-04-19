@@ -272,7 +272,7 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void CreateNewMesh(UStaticMeshComponent* mesh);
+	void CreateNewMesh(UStaticMeshComponent* mesh, FStaticMaterial mat);
 
 	TArray<Face> ConstructFaces();
 

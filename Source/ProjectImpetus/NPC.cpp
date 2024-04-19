@@ -31,7 +31,7 @@ void ANPC::BeginPlay()
 	}
 	if (m_ShouldGenerateMesh)
 	{
-		m_MeshGen->CreateNewMesh(m_Mesh);
+		m_MeshGen->CreateNewMesh(m_Mesh, m_Material);
 	}
 }
 

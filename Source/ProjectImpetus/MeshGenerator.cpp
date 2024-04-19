@@ -135,7 +135,7 @@ void UMeshGenerator::BeginPlay()
 }
 
 
-void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
+void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh, FStaticMaterial mat)
 {
 
 	// GENERATE 3D CUBE MAP USING BOOLEAN VALUES
@@ -348,7 +348,7 @@ void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh)
 
 	// set default material
 	UStaticMesh* staticMesh = NewObject<UStaticMesh>(this);
-	staticMesh->GetStaticMaterials().Add(FStaticMaterial());
+	staticMesh->GetStaticMaterials().Add(mat);
 
 	UStaticMesh::FBuildMeshDescriptionsParams mdParams;
 	mdParams.bBuildSimpleCollision = true;
