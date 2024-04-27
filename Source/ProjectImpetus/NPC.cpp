@@ -140,28 +140,28 @@ void ANPC::CreateAttack(ATile3D* startTile)
 		}
 		// cascade tiles towards self tile to create area attack effects
 
-		ATile3D* NPCTile = m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-		// for every tile in the set
-		for (ATile3D* tile : attackTiles)
-		{
-			// find the path between self tile and this tile
-			Path path = m_PlanningBrain->FindAStarPath(tile, NPCTile);
-			if (path.totalCost < 0)
-			{
-				continue;
-			}
-			else
-			{
-				// add every tile not in attackTiles
-				for (FVector2D loc : path.locations)
-				{
-					if (!attackTiles.Contains(m_PlanningBrain->FindClosestTile(loc)))
-					{
-						attackTiles.Add(m_PlanningBrain->FindClosestTile(loc));
-					}
-				}
-			}			
-		}
+		//ATile3D* NPCTile = m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+		//// for every tile in the set
+		//for (ATile3D* tile : attackTiles)
+		//{
+		//	// find the path between self tile and this tile
+		//	Path path = m_PlanningBrain->FindAStarPath(tile, NPCTile);
+		//	if (path.totalCost < 0)
+		//	{
+		//		continue;
+		//	}
+		//	else
+		//	{
+		//		// add every tile not in attackTiles
+		//		for (FVector2D loc : path.locations)
+		//		{
+		//			if (!attackTiles.Contains(m_PlanningBrain->FindClosestTile(loc)))
+		//			{
+		//				attackTiles.Add(m_PlanningBrain->FindClosestTile(loc));
+		//			}
+		//		}
+		//	}			
+		//}
 
 		for (ATile3D* tile : attackTiles)
 		{
@@ -452,6 +452,8 @@ void ANPC::SetRotation()
 
 void ANPC::UseAction(ActionState action)
 {
+	if (m_HasDied) return;
+
 	if (action != ActionState::Searching) m_SearchTargetTile = nullptr; // if not searching, reset target tile
 
 	// actions can change during execution, thus each step, consider what current action is in use
@@ -461,7 +463,10 @@ void ANPC::UseAction(ActionState action)
 	{
 		ANPC* closestEnemy = FindClosestNPC(false, true);
 
-		if (closestEnemy == nullptr) return;
+		if (closestEnemy == nullptr)
+		{
+			return;
+		}
 
 		if (FVector2D::Distance(FVector2D{ closestEnemy->GetActorLocation().X, closestEnemy->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y }) <= m_AttackRange)
 		{

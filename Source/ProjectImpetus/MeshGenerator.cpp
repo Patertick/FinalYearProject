@@ -142,7 +142,7 @@ void UMeshGenerator::CreateNewMesh(UStaticMeshComponent* mesh, FStaticMaterial m
 
 	m_XBounds = FMath::RandRange(10, 25);
 	m_YBounds = FMath::RandRange(10, 25);
-	m_ZBounds = FMath::RandRange(10, 25);
+	m_ZBounds = FMath::RandRange(25, 50);
 
 	for (int z = 0; z < m_ZBounds; z++)
 	{

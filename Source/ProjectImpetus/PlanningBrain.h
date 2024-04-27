@@ -331,4 +331,6 @@ public:
 	void GenerateStartingValues();
 
 	int32 GetNumberOfEnemies() { return m_NumberOfEnemies; }
+
+	float GetSensoryRange() { return KSENSORYRANGE; }
 };

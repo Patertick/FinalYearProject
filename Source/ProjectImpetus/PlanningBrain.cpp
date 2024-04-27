@@ -464,9 +464,7 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 	TArray<FNode> closedList; // checked tiles
 	TArray<FNode> openList; // tiles to be checked
 	
-
-	heuristicCost = FVector::Distance(startTile->GetActorLocation(), endTile->GetActorLocation());
-	FNode startNode = FNode(0, heuristicCost, startTile, nullptr);
+	FNode startNode = FNode(0, FVector::Distance(startTile->GetActorLocation(), endTile->GetActorLocation()), startTile, nullptr);
 
 	openList.Add(startNode);
 
@@ -474,7 +472,7 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 	{
 		// find node in open list with lowest total cost
 		FNode closestNode = openList[0];
-		for (FNode node : openList)
+		for (const FNode& node : openList)
 		{
 			if (closestNode.totalCostFromGoal > node.totalCostFromGoal)
 			{
@@ -519,7 +517,7 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 	{
 		Path reversePath;
 		FNode currentNode = FNode(0, 0, nullptr, nullptr);
-		for (FNode node : closedList)
+		for (const FNode& node : closedList)
 		{
 			if (node.associatedTile == endTile)
 			{
@@ -533,7 +531,7 @@ Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 			{
 				reversePath.locations.Add(FVector2D{ currentNode.associatedTile->GetActorLocation().X, currentNode.associatedTile->GetActorLocation().Y });
 				reversePath.totalCost += currentNode.totalCostFromGoal;
-				for (FNode node : closedList)
+				for (const FNode& node : closedList)
 				{
 					if (node.associatedTile == currentNode.parentTile)
 					{

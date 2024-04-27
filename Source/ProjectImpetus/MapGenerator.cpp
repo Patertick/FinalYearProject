@@ -7,8 +7,8 @@
 MapGenerator::MapGenerator()
 {
 	// randomize number of chunks
-	m_NumXChunks = FMath::RandRange(3, 5);
-	m_NumYChunks = FMath::RandRange(2, 5);
+	m_NumXChunks = FMath::RandRange(3, 4);
+	m_NumYChunks = FMath::RandRange(2, 3);
 
 	for (int chunkY = 0; chunkY < m_NumYChunks; chunkY++)
 	{

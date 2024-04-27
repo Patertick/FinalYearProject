@@ -50,6 +50,7 @@ void ATile3D::AttackTile(ANPC* attackingNPC)
 
 	if (m_NPCOnTile != nullptr)
 	{
+		if (m_NPCOnTile->GetHasDied()) return;
 		// deal damage
 		if (m_NPCOnTile->CanTakeDamage())
 		{
