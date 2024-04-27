@@ -451,7 +451,7 @@ void UPlanningBrain::CreateQValues()
 
 Path UPlanningBrain::FindAStarPath(ATile3D* startTile, ATile3D* endTile)
 {
-	if (startTile == nullptr || endTile == nullptr) {
+	if (startTile == nullptr || endTile == nullptr || startTile == endTile) {
 		Path path;
 		path.totalCost = -1;
 		return path;

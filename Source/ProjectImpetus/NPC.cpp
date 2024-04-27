@@ -55,7 +55,7 @@ void ANPC::CreateAttack(ATile3D* startTile)
 	if (m_HasDied) return;
 	float distance = FVector2D::Distance(FVector2D{ startTile->GetActorLocation().X, startTile->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
 	// is the start tile within attack range?
-	if (distance > m_AttackRange)
+	if (distance < m_AttackRange)
 	{
 
 		TArray<AActor*> NPC;
@@ -140,19 +140,27 @@ void ANPC::CreateAttack(ATile3D* startTile)
 		}
 		// cascade tiles towards self tile to create area attack effects
 
+		ATile3D* NPCTile = m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y });
 		// for every tile in the set
 		for (ATile3D* tile : attackTiles)
 		{
 			// find the path between self tile and this tile
-			Path path = m_PlanningBrain->FindAStarPath(tile, m_PlanningBrain->FindClosestTile(FVector2D{ GetActorLocation().X, GetActorLocation().Y }));
-			// add every tile not in attackTiles
-			for (FVector2D loc : path.locations)
+			Path path = m_PlanningBrain->FindAStarPath(tile, NPCTile);
+			if (path.totalCost < 0)
 			{
-				if (!attackTiles.Contains(m_PlanningBrain->FindClosestTile(loc)))
-				{
-					attackTiles.Add(m_PlanningBrain->FindClosestTile(loc));
-				}
+				continue;
 			}
+			else
+			{
+				// add every tile not in attackTiles
+				for (FVector2D loc : path.locations)
+				{
+					if (!attackTiles.Contains(m_PlanningBrain->FindClosestTile(loc)))
+					{
+						attackTiles.Add(m_PlanningBrain->FindClosestTile(loc));
+					}
+				}
+			}			
 		}
 
 		for (ATile3D* tile : attackTiles)
@@ -229,6 +237,20 @@ void ANPC::Tick(float DeltaTime)
 			m_CurrentTile->SetNPCOnTile(nullptr);
 			m_CurrentTile->SetType(TileType::None);
 			m_CurrentTile = closestTile;
+		}
+	}
+
+	// cooldown for taking damage
+	if (!m_CanBeTargeted)
+	{
+		if (m_DamageTimer >= 0.0f)
+		{
+			m_DamageTimer -= DeltaTime;
+		}
+		else
+		{
+			m_CanBeTargeted = true;
+			m_DamageTimer = KMAXDAMAGETIMER;
 		}
 	}
 
@@ -699,51 +721,54 @@ ANPC* ANPC::FindClosestNPC(bool canBeAlly, bool canBeEnemy)
 
 	for (AActor* npc : NPCs)
 	{
-		if (canBeAlly && canBeEnemy)
+		if (!Cast<ANPC>(npc)->GetHasDied()) // don't sense dead NPCs
 		{
-			if (closestNPC == nullptr)
+			if (canBeAlly && canBeEnemy)
 			{
-				closestNPC = Cast<ANPC>(npc);
-			}
-			else
-			{
-				float oldDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-				float newDistance = FVector2D::Distance(FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-				if (newDistance < oldDistance)
+				if (closestNPC == nullptr)
 				{
 					closestNPC = Cast<ANPC>(npc);
 				}
+				else
+				{
+					float oldDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					float newDistance = FVector2D::Distance(FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					if (newDistance < oldDistance)
+					{
+						closestNPC = Cast<ANPC>(npc);
+					}
+				}
 			}
-		}
-		else if (canBeAlly && Cast<ANPC>(npc)->m_Threat == m_Threat)
-		{
-			if (closestNPC == nullptr)
+			else if (canBeAlly && Cast<ANPC>(npc)->m_Threat == m_Threat)
 			{
-				closestNPC = Cast<ANPC>(npc);
-			}
-			else
-			{
-				float oldDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-				float newDistance = FVector2D::Distance(FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-				if (newDistance < oldDistance)
+				if (closestNPC == nullptr)
 				{
 					closestNPC = Cast<ANPC>(npc);
 				}
+				else
+				{
+					float oldDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					float newDistance = FVector2D::Distance(FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					if (newDistance < oldDistance)
+					{
+						closestNPC = Cast<ANPC>(npc);
+					}
+				}
 			}
-		}
-		else if (canBeEnemy && Cast<ANPC>(npc)->m_Threat != m_Threat)
-		{
-			if (closestNPC == nullptr)
+			else if (canBeEnemy && Cast<ANPC>(npc)->m_Threat != m_Threat)
 			{
-				closestNPC = Cast<ANPC>(npc);
-			}
-			else
-			{
-				float oldDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-				float newDistance = FVector2D::Distance(FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
-				if (newDistance < oldDistance)
+				if (closestNPC == nullptr)
 				{
 					closestNPC = Cast<ANPC>(npc);
+				}
+				else
+				{
+					float oldDistance = FVector2D::Distance(FVector2D{ closestNPC->GetActorLocation().X, closestNPC->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					float newDistance = FVector2D::Distance(FVector2D{ npc->GetActorLocation().X, npc->GetActorLocation().Y }, FVector2D{ GetActorLocation().X, GetActorLocation().Y });
+					if (newDistance < oldDistance)
+					{
+						closestNPC = Cast<ANPC>(npc);
+					}
 				}
 			}
 		}

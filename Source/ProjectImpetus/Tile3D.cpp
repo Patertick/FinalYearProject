@@ -43,14 +43,20 @@ void ATile3D::TurnToWall()
 void ATile3D::AttackTile(ANPC* attackingNPC)
 {
 	// set as attacked
+	if (attackingNPC->GetHasDied()) return; // do not attack if dead
+
 	m_Attacked = true;
 	// find if an NPC is on the tile, if so, they are dealt damage
 
 	if (m_NPCOnTile != nullptr)
 	{
 		// deal damage
-		UGameplayStatics::ApplyDamage(m_NPCOnTile, attackingNPC->GetDamage(), nullptr, attackingNPC, NULL);
-		attackingNPC->SetDamageDealt(attackingNPC->GetDamage());
+		if (m_NPCOnTile->CanTakeDamage())
+		{
+			UGameplayStatics::ApplyDamage(m_NPCOnTile, attackingNPC->GetDamage(), nullptr, attackingNPC, NULL);
+			attackingNPC->SetDamageDealt(attackingNPC->GetDamage());
+			m_NPCOnTile->TakenDamage();
+		}
 	}
 
 	m_Mesh->SetMaterial(0, m_AttackMaterial);

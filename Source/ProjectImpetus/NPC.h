@@ -169,6 +169,9 @@ private:
 	float m_DeathTimer{ 5.0f };
 	const float KMAXDEATHTIMER{ 5.0f };
 
+	float KMAXDAMAGETIMER{ 0.5f };
+	float m_DamageTimer{ 0.5f };
+
 	// acting
 
 	Action m_CurrentAction; // current action this NPC is performing
@@ -289,6 +292,9 @@ public:
 		void Respawn();
 
 	bool ShouldRunTick() { return m_HasEscaped && m_HasDied; } // if either are false, then the tick will not run
+
+	bool CanTakeDamage() { return m_CanBeTargeted; }
+	void TakenDamage() { m_CanBeTargeted = false; }
 
 	UFUNCTION(BlueprintCallable, Category = HasEscaped)
 		bool GetHasEscaped() { return m_HasEscaped || !m_Threat; } // if not a threat npc this will always return true (so as to ignore their values)
